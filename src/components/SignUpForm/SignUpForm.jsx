@@ -31,11 +31,12 @@ const SignUpForm = () => {
     }
 
     const isFormValid=()=>{
-      return !(username && password && role && password===passwordConf)
+      return !(username && password && password===passwordConf)
     }
 
   return (
     <>
+    <h1>Sign Up</h1>
     <form onSubmit={handleSubmit}>
       <div>
         <label htmlFor="username">Username:</label>
@@ -49,16 +50,9 @@ const SignUpForm = () => {
         <label htmlFor="confirm">Confirm Password:</label>
         <input type="password" name='passwordConf' id='passwordConf' value={passwordConf} onChange={handleChange} required />
       </div>
+
       <div>
-        <label htmlFor="role">Role:</label>
-        <select name="role" id="role" onChange={handleChange}>
-          <option value="">---select---</option>
-          <option value="admin">Admin</option>
-          <option value="user">User</option>
-        </select>
-      </div>
-      <div>
-        <button disabled={isFormValid()} >Sign Up</button>
+        <button disabled={isFormValid()} onClick={()=>navigate('/sign-in')} >Sign Up</button>
         <button onClick={()=>navigate('/')}>Cancel</button>
 
       </div>
