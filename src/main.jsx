@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.jsx'
 import {UserProvider} from './contexts/UserContext.jsx'
 import {BrowserRouter} from 'react-router'
+import './index.css';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -12,6 +13,5 @@ createRoot(document.getElementById('root')).render(
     <App />
     </UserProvider>
     </BrowserRouter>
-    
   </StrictMode>,
 )
