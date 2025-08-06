@@ -1,9 +1,25 @@
-import React from 'react'
+import { useEffect, useContext } from 'react';
 
-const MyRequests = () => {
+import * as requestService from '../../services/requestService';
+
+const MyRequest = () => {
+
+  useEffect(() => {
+    const fetchRequests = async () => {
+      try {
+        const fetchedRequest = await requestService.loadReqeusts();
+        console.log(fetchedRequest);
+      } catch (err) {
+        console.log(err)
+      }
+    }
+  }, []);
+
   return (
-    <div>MyRequests</div>
-  )
-}
+    <main>
+      <h1>Requests</h1>
+    </main>
+  );
+};
 
-export default MyRequests
+export default MyRequest;
