@@ -2,13 +2,16 @@ import React, { useContext } from 'react'
 import { Link, Outlet } from 'react-router-dom'
 import { UserContext } from '../../contexts/UserContext'
 import Breadcrumb from '../../components/Breadcrumb/Breadcrumb'
+import { useNavigate } from 'react-router-dom'
 
 const HomePage = () => {
   const { user, setUser } = useContext(UserContext)
+  const navigate = useNavigate()
 
   const handleSignOut = () => {
     localStorage.removeItem('token')
     setUser(null)
+    navigate('/')
   }
 
   return (
