@@ -2,36 +2,38 @@ import React, { useCallback, useContext, useState } from 'react';
 import apiClient from '../api/apiClient';
 import { UserContext } from '../../contexts/UserContext';
 
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function isNonEmptyString(value) {
-  if (value === undefined) return false;
-  if (value === null) return false;
-  if (typeof value !== 'string') return false;
-  if (value.trim() === '') return false;
-  return true;
+  return typeof value === 'string' && value.trim() !== '';
 }
 
 export default function Settings() {
-  const { user, setUser } = useContext(UserContext) || { user: null, setUser: () => {} };
-  const [name, setName] = useState(isNonEmptyString(user && user.name) ? user.name : '');
-  const [email, setEmail] = useState(isNonEmptyString(user && user.email) ? user.email : '');
+  const context = useContext(UserContext);
+  if (!context) {
+    throw new Error('Settings must be used within a UserProvider');
+  }
+  const { user, setUser } = context;
+
+  const [name, setName] = useState(isNonEmptyString(user?.name) ? user.name : '');
+  const [email, setEmail] = useState(isNonEmptyString(user?.email) ? user.email : '');
   const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState(null);
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   const clearAlert = useCallback(() => {
     setAlert(null);
   }, []);
 
   const validate = useCallback(() => {
-    if (isNonEmptyString(name) === false) {
+    if (!isNonEmptyString(name)) {
       setAlert({ type: 'error', text: 'Name is required' });
       return false;
     }
-    if (isNonEmptyString(email) === false) {
+    if (!isNonEmptyString(email)) {
       setAlert({ type: 'error', text: 'Email is required' });
       return false;
     }
-    if (emailRegex.test(email.trim()) === false) {
+    if (!emailRegex.test(email.trim())) {
       setAlert({ type: 'error', text: 'Invalid email format' });
       return false;
     }
@@ -42,24 +44,21 @@ export default function Settings() {
     async (e) => {
       e.preventDefault();
       clearAlert();
-      if (loading === true) return;
-      if (validate() === false) return;
+      if (loading) return;
+      if (!validate()) return;
+
       setLoading(true);
       try {
         const payload = { name: name.trim(), email: email.trim() };
         const response = await apiClient.put('/user/settings', payload);
-        if (response && response.data) {
+
+        if (response?.data) {
           setUser(response.data);
         }
+
         setAlert({ type: 'success', text: 'Settings updated successfully' });
       } catch (err) {
-        let msg = 'Update failed';
-        if (err !== undefined && err !== null) {
-          if (err.message !== undefined && err.message !== null) {
-            msg = String(err.message);
-          }
-        }
-        setAlert({ type: 'error', text: msg });
+        setAlert({ type: 'error', text: err?.message || 'Update failed' });
       } finally {
         setLoading(false);
       }
@@ -78,10 +77,12 @@ export default function Settings() {
         <h2 id="settings-heading" className="text-2xl font-bold mb-6 text-center text-gray-800">
           Settings
         </h2>
-        {alert !== null && (
+
+        {alert && (
           <div
             role="alert"
             aria-live="assertive"
+            tabIndex="-1"
             className={
               alert.type === 'success'
                 ? 'mb-4 p-3 rounded text-green-800 bg-green-100'
@@ -101,6 +102,7 @@ export default function Settings() {
             </div>
           </div>
         )}
+
         <label htmlFor="settings-name" className="block text-gray-700 mb-1">
           Full Name
         </label>
@@ -111,9 +113,10 @@ export default function Settings() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           className="w-full border px-4 py-2 rounded-xl mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          disabled={loading === true}
+          disabled={loading}
           aria-required="true"
         />
+
         <label htmlFor="settings-email" className="block text-gray-700 mb-1">
           Email Address
         </label>
@@ -124,16 +127,17 @@ export default function Settings() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className="w-full border px-4 py-2 rounded-xl mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          disabled={loading === true}
+          disabled={loading}
           aria-required="true"
         />
+
         <button
           type="submit"
           className="w-full bg-yellow-600 text-white py-2 rounded-xl hover:bg-yellow-700 transition disabled:opacity-60"
-          disabled={loading === true}
-          aria-busy={loading === true}
+          disabled={loading}
+          aria-busy={loading}
         >
-          {loading === true ? 'Saving...' : 'Save Changes'}
+          {loading ? 'Saving...' : 'Save Changes'}
         </button>
       </form>
     </div>
