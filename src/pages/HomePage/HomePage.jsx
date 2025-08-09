@@ -41,7 +41,7 @@ const HomePage = () => {
               <>
                 <SidebarLink to="/" label="🏠 Dashboard" />
                 <SidebarLink to="/profile" label="👤 Profile" />
-                <SidebarLink to="/my-requests" label="📥 My Requests" />
+                <SidebarLink to="/requests" label="📥 My Requests" />
                 <SidebarLink to="/settings" label="⚙️ Settings" />
                 <button
                   onClick={handleSignOut}

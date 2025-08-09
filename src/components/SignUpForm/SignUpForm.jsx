@@ -37,6 +37,7 @@ const SignUpForm = () => {
   return (
     <>
     <h1>Sign Up</h1>
+    <p>{message}</p>
     <form onSubmit={handleSubmit}>
       <div>
         <label htmlFor="username">Username:</label>
@@ -52,7 +53,7 @@ const SignUpForm = () => {
       </div>
 
       <div>
-        <button disabled={isFormValid()} onClick={()=>navigate('/sign-in')} >Sign Up</button>
+        <button disabled={isFormValid()}>Sign Up</button>
         <button onClick={()=>navigate('/')}>Cancel</button>
 
       </div>
