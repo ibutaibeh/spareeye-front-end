@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import {Link} from 'react-router-dom'
 import * as requestService from '../../services/requestService';
-import AddNewRequest from '../AddNewRequest/AddNewRequest';
+import {UserContext} from "../../contexts/UserContext"
 
 const MyRequest = () => {
-  const [requests, setRequests] = useState([])
+const [requests, setRequests] = useState([])
 
+const {user}= useContext(UserContext)
+const userRequestList =requests.filter(request=>request.owner._id === user._id)
   useEffect(() => {
     const fetchRequests = async () => {
       try {
@@ -22,17 +24,17 @@ const MyRequest = () => {
     <main>
       <h1>My Requests</h1>
       <Link to={'/requests/addnewrequest'}>Add Request</Link>
-        {requests.length>0 ? (<p>{requests.length} requests </p>):(<p>add new request</p>)}
+        {userRequestList.length>0 ? (<p>{userRequestList.length} requests </p>):(<p> --- 0 request ---</p>)} 
       <ul>
-        {requests.map((request, index) => ( 
-          <div className='requestList'>
-          <li key={index}>Request {index+1} | {new Date(request.date).toISOString().split('T')[0]}</li>
+        {requests
+        .filter(request=>request.owner._id === user._id)
+        .map((request, index) => ( 
+          <div key={index} className='requestList'>
+          <li>Request {index+1} | {new Date(request.date).toISOString().split('T')[0]}</li>
           <h1>Edit</h1>
           <h1>Delete</h1>
           </div>
-      ))}
-
-
+          ))}
       </ul>
     </main>
   );
