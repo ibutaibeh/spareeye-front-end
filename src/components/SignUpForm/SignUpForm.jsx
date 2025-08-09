@@ -44,6 +44,10 @@ const SignUpForm = () => {
         <input type="text" name='username' id='username' value={username} onChange={handleChange} required />
       </div>
       <div>
+        <label htmlFor="email">Email:</label>
+        <input type="text" name='email' id='email' onChange={handleChange} required />
+      </div>
+      <div>
         <label htmlFor="password">Password:</label>
         <input type="text" name='password' id='password' value={password} onChange={handleChange} required />
       </div>
