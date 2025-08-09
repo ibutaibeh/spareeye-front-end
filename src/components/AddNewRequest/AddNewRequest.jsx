@@ -6,17 +6,14 @@ const AddNewRequest = () => {
   const [input, setInput] = useState("");
   const [files, setFiles] = useState([]);
   const [voiceMode, setVoiceMode] = useState("none");
-  const endRef = useRef(null);
-
-    useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  const endRef = useRef(null)
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   return (
     <>
     <form>
-<label htmlFor="date">Date :</label>
-
-
-
+      <label htmlFor="date">Date :</label>
+      
     </form>
 
 
