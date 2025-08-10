@@ -8,6 +8,7 @@ import Profile from './components/Profile/Profile'
 import MyRequests from './components/MyRequests/MyRequests'
 import Settings from './components/Settings/Settings'
 import AddNewRequest from './components/AddNewRequest/AddNewRequest'
+import EditRequest from './components/EditRequest/EditRequest'
 
 const App = () => {
   return (
@@ -20,6 +21,7 @@ const App = () => {
           <Route path='/requests' element={<MyRequests />} />
           <Route path='/settings' element={<Settings />} />
           <Route path='/requests/addnewrequest' element={<AddNewRequest/>}/>
+          <Route path='/requests/:reqId' element={<EditRequest/>}/>
         </Route>
       </Routes>
     </>
