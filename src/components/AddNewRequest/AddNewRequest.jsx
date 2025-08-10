@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect,useContext } from "react";
 import axios from "axios";
 import { analyzeRequest } from "../../services/analyzeService"; // adjust path
-
+import {UserContext} from "../../contexts/UserContext"
 const AddNewRequest = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -9,6 +9,15 @@ const AddNewRequest = () => {
   const [sending, setSending] = useState(false);
   const [previews, setPreviews] = useState([]);
   const endRef = useRef(null);
+
+//handle change and submit for "Add New Request" form ... work in progress 
+//-------------------------------------------------------------------------
+  const {user}= useContext(UserContext)
+
+  const handleChange =(evt)=>{ 
+        setFormData({...formData, [evt.target.name]:evt.target.value})
+    };
+//----------------------------------------------------------------------------
 
   useEffect(() => {
     console.log(endRef)
@@ -79,8 +88,15 @@ const AddNewRequest = () => {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 font-sans">
-      <h1 className="mb-6 text-2xl font-semibold text-gray-900">Add New Request</h1>
+      <h1 className="mb-6 text-2xl font-semibold text-white-100">Add New Request</h1>
+        <div className="rounded-2xl border border-gray-200 bg-white text-gray-800 p-4 shadow-sm">
+          <form>
+                <label htmlFor="name">Date</label>
 
+          </form>
+
+
+        </div>
       <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
         <div className="mb-4 max-h-[60vh] overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 p-4">
           {messages.length === 0 && (
