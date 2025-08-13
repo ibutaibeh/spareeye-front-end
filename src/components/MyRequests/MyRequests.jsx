@@ -25,22 +25,61 @@ setRequests(requests.filter((req)=> req._id!==deletedReq?._id))
 
 }
   return (
-    <main>
-      <h1>My Requests</h1>
-      <Link to={'/requests/addnewrequest'}>Add New Request</Link>
-        {userRequestList.length>0 ? (<p>{userRequestList.length} requests </p>):(<p> --- 0 request ---</p>)} 
-      <ul>
-        {requests
-        .filter(request=>request.owner._id === user._id)
-        .map((request, index) => ( 
-          <div key={index} className='requestList'>
-          <li>Request {index+1} | {request.name} | {new Date(request.createdAt).toISOString().split('T')[0]}</li>
-          <Link to={`/requests/${request._id}`}>Edit</Link>
-          <button onClick={()=>handleDeleteRequest(request._id)}>Delete</button>
+<main className="p-6 bg-gray-900 min-h-screen">
+  <div className="text-center mb-4">
+    <h1 className="text-3xl font-bold text-gray-100">My Requests</h1>
+    <p className="text-gray-400">
+      {userRequestList.length > 0
+        ? `${userRequestList.length} requests`
+        : "--- 0 request ---"}
+    </p>
+  </div>
+
+  <div className="flex justify-end mb-6">
+    <Link
+      to="/requests/addnewrequest"
+      className="px-4 py-2 bg-blue-800 text-white rounded-lg hover:bg-blue-600 transition"
+    >
+      Add New Request
+    </Link>
+  </div>
+
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {requests
+      .filter((request) => request.owner._id === user._id)
+      .map((request, index) => (
+        <div
+          key={index}
+          className="bg-gray-200 hover:bg-gray-50 shadow-md rounded-lg p-4 flex flex-col justify-between transform transition duration-300 hover:scale-105 hover:shadow-lg"
+        >
+          <div>
+            <h2 className="text-lg font-semibold text-gray-800">
+              Request {index + 1}
+            </h2>
+            <p className="text-gray-700">{request.name}</p>
+            <p className="text-sm text-gray-500">
+              {new Date(request.createdAt).toISOString().split("T")[0]}
+            </p>
           </div>
-          ))}
-      </ul>
-    </main>
+          <div className="flex justify-between mt-4">
+            <Link
+              to={`/requests/${request._id}`}
+              className="text-blue-600 hover:underline"
+            >
+              View
+            </Link>
+            <button
+              onClick={() => handleDeleteRequest(request._id)}
+              className="text-red-600 hover:underline"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      ))}
+  </div>
+</main>
+
   );
 };
 
