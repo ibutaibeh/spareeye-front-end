@@ -12,7 +12,7 @@ const buildAnalyzeForm = (userText = "", files = []) => {
 const analyzeRequest = async ({ userText = "", files = [] } = {}) => {
   const form = buildAnalyzeForm(userText, files);
 
-  const { data } = await axios.post(`${BASE_URL}/analyze`, form, {
+  const { data } = await axios.post(`${BASE_URL}/analyze1`, form, {
     headers: { "Content-Type": "multipart/form-data" },
     timeout: 60_000,
     onUploadProgress: (evt) => {

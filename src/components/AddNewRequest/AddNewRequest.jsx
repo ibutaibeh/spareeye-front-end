@@ -1,58 +1,79 @@
-import { useState, useRef, useEffect,useContext } from "react";
+import { useState, useRef, useEffect, useContext } from "react";
 import axios from "axios";
 import { analyzeRequest } from "../../services/analyzeService"; // adjust path
-import {UserContext} from "../../contexts/UserContext"
-import {createRequest} from "../../services/requestService"
+import { UserContext } from "../../contexts/UserContext"
+import { createRequest } from "../../services/requestService"
 const AddNewRequest = () => {
+
+  const initialData = {
+    name: '12',
+    carDetails: {
+      carType: '',
+      carModel: '',
+      carMade: '',
+      carYear: ''
+    },
+    image: '',
+    description: ''
+  }
+
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [files, setFiles] = useState([]);
   const [sending, setSending] = useState(false);
   const [previews, setPreviews] = useState([]);
   const endRef = useRef(null);
+  const [requestData, setRequestData] = useState(initialData)
+  const { user } = useContext(UserContext)
 
-//handle change and submit for "Add New Request" form ... work in progress 
-//-------------------------------------------------------------------------
-  const {user}= useContext(UserContext)
-  const [formData,setFormData]=useState({
-    name:'',
-    carDetails:{
-      carType:'',
-      carModel:'',
-      carMade:'',
-      carYear:''
+  const [step, setStep] = useState(0)
+  useEffect(() => {
+    setMessages(() => [{ role: "assistant", text: `Hello ${user.username}, How I can Asist you today?` }]);
+    setStep(step + 1)
+  }, []);
+
+
+  //handle change and submit for "Add New Request" form ... work in progress 
+  //-------------------------------------------------------------------------
+  const [formData, setFormData] = useState({
+    name: '',
+    carDetails: {
+      carType: '',
+      carModel: '',
+      carMade: '',
+      carYear: ''
     },
-    image:'',
-    description:''
+    image: '',
+    description: ''
   })
-  const {name,carDetails:{carType,carModel,carMade,carYear},image,description } = formData
+  const { name, carDetails: { carType, carModel, carMade, carYear }, image, description } = formData
 
 
-  const handleChange =(evt)=>{ 
-        setFormData({...formData, [evt.target.name]:evt.target.value})
-    };
-   const handleCarDetailsChange=(evt)=>{
+  const handleChange = (evt) => {
+    setFormData({ ...formData, [evt.target.name]: evt.target.value })
+  };
+  const handleCarDetailsChange = (evt) => {
     setFormData({
-      ...formData, carDetails:{...formData.carDetails,[evt.target.name]:evt.target.value}
+      ...formData, carDetails: { ...formData.carDetails, [evt.target.name]: evt.target.value }
     })
-   } 
-const handleSubmit = async (evt)=>{
-  evt.preventDefault();
-  await createRequest(formData);
-  setFormData({
-    name:'',
-    carDetails:{
-      carType:'',
-      carModel:'',
-      carMade:'',
-      carYear:''
-    },
-    image:'',
-    description:''
-  })
-}
+  }
+  const handleSubmit = async (evt) => {
+    evt.preventDefault();
+    await createRequest(formData);
+    setFormData({
+      name: '',
+      carDetails: {
+        carType: '',
+        carModel: '',
+        carMade: '',
+        carYear: ''
+      },
+      image: '',
+      description: ''
+    })
+  }
 
-//----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
 
   useEffect(() => {
     console.log(endRef)
@@ -91,32 +112,48 @@ const handleSubmit = async (evt)=>{
     form.append("userText", input);
     files.forEach((f) => form.append("images", f));
 
+    console.log(requestData)
+    switch (step) {
+      case 1: 
+        setRequestData({...requestData, name: "dasdas" })
+        setMessages((m) => [...m, { role: "assistant", text: `What is the type of your car?` }]);
+        break;
+
+      default:
+        break;
+    }
+    setStep(step + 1)
+    console.log("requestData", requestData)
+
     setInput("");
     setFiles([]);
+    if (step >= 3) {
+      try {
 
-    try {
-      const { result } = await analyzeRequest({ userText: input, files });
-      console.log(result)
-      const assistantText = [
-        `Diagnosis: ${result.diagnosis}`,
-        `Severity: ${result.severity}`,
-        `Likely part: ${result.likely_part_name}`,
-        `Repair steps:\n- ${result.repair_steps.join("\n- ")}`,
-        `Tools needed:\n- ${result.tools_needed.join("\n- ")}`,
-        result?.safety_notes?.length ? `Safety:\n- ${result.safety_notes.join("\n- ")}` : "",
-        result?.recommended_sites?.length
-          ? `Recommended sites:\n${result.recommended_sites.map((s) => `- ${s.title}: ${s.url}`).join("\n")}`
-          : "",
-      ].filter(Boolean).join("\n\n");
 
-      setMessages((m) => [...m, { role: "assistant", text: assistantText }]);
-    } catch (e) {
-      setMessages((m) => [
-        ...m,
-        { role: "assistant", text: "Sorry—something went wrong while analyzing. Please try again." },
-      ]);
-    } finally {
-      setSending(false);
+        const { result } = await analyzeRequest({ userText: input, files });
+
+        const assistantText = [
+          `Diagnosis: ${result.diagnosis}`,
+          `Severity: ${result.severity}`,
+          `Likely part: ${result.likely_part_name}`,
+          `Repair steps:\n- ${result.repair_steps.join("\n- ")}`,
+          `Tools needed:\n- ${result.tools_needed.join("\n- ")}`,
+          result?.safety_notes?.length ? `Safety:\n- ${result.safety_notes.join("\n- ")}` : "",
+          result?.recommended_sites?.length
+            ? `Recommended sites:\n${result.recommended_sites.map((s) => `- ${s.title}: ${s.url}`).join("\n")}`
+            : "",
+        ].filter(Boolean).join("\n\n");
+
+        setMessages((m) => [...m, { role: "assistant", text: assistantText }]);
+      } catch (e) {
+        setMessages((m) => [
+          ...m,
+          { role: "assistant", text: "Sorry—something went wrong while analyzing. Please try again." },
+        ]);
+      } finally {
+        setSending(false);
+      }
     }
 
   };
@@ -124,78 +161,78 @@ const handleSubmit = async (evt)=>{
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 font-sans">
       <h1 className="mb-6 text-2xl font-semibold text-white-100">Add New Request</h1>
-        <div className="rounded-2xl border border-gray-200 bg-white text-gray-800 p-4 shadow-sm">
-          
-          <form onSubmit={handleSubmit}>
-            <div className=".gap-1 flex gap-10  ">
-                <label htmlFor="name">Name :</label>
-                <input className="rounded-2xl border border-gray-200 bg-white text-gray-800 p-1 shadow-sm"
-                 type="text"
-                 id="name"
-                 name="name"
-                 value={formData.name}
-                 onChange={handleChange} required/>
-            </div>
-            <div className=".gap-1 flex gap-10  ">
-                <label htmlFor="carType">carType :</label>
-                <input className="rounded-2xl border border-gray-200 bg-white text-gray-800 p-1 shadow-sm"
-                 type="text"
-                 id="carType"
-                 name="carType"
-                 value={formData.carDetails.carType}
-                 onChange={handleCarDetailsChange} required/>
-            </div>
-            <div className=".gap-1 flex gap-10  ">
-                <label htmlFor="carModel">carModel :</label>
-                <input className="rounded-2xl border border-gray-200 bg-white text-gray-800 p-1 shadow-sm"
-                 type="text"
-                 id="carModel"
-                 name="carModel"
-                 value={formData.carDetails.carModel}
-                 onChange={handleCarDetailsChange} required/>
-            </div>
-            <div className=".gap-1 flex gap-10  ">
-                <label htmlFor="carMade">carMade :</label>
-                <input className="rounded-2xl border border-gray-200 bg-white text-gray-800 p-1 shadow-sm"
-                 type="text"
-                 id="carMade"
-                 name="carMade"
-                 value={formData.carDetails.carMade}
-                 onChange={handleCarDetailsChange} required/>
-            </div>
-                        <div className=".gap-1 flex gap-10  ">
-                <label htmlFor="carYear">carYear :</label>
-                <input className="rounded-2xl border border-gray-200 bg-white text-gray-800 p-1 shadow-sm"
-                 type="text"
-                 id="carYear"
-                 name="carYear"
-                 value={formData.carDetails.carYear}
-                 onChange={handleCarDetailsChange} required/>
-            </div>
-            <div className=".gap-1 flex gap-10  ">
-                <label htmlFor="image">image :</label>
-                <input className="rounded-2xl border border-gray-200 bg-white text-gray-800 p-1 shadow-sm"
-                 type="text"
-                 id="image"
-                 name="image"
-                 value={formData.image}
-                 onChange={handleChange} required/>
-            </div>
-            <div className=".gap-1 flex gap-10  ">
-                <label htmlFor="description">description :</label>
-                <textarea className="rounded-2xl border border-gray-200 bg-white text-gray-800 p-1 shadow-sm"
-                 name="description"
-                 id="description"
-                 rows="8"
-                 cols="35"
-                 value={formData.description}
-                 onChange={handleChange} required/>
-            </div>
-            <button>Submit Request</button>
-          </form>
+      <div className="rounded-2xl border border-gray-200 bg-white text-gray-800 p-4 shadow-sm">
+
+        <form onSubmit={handleSubmit}>
+          <div className=".gap-1 flex gap-10  ">
+            <label htmlFor="name">Name :</label>
+            <input className="rounded-2xl border border-gray-200 bg-white text-gray-800 p-1 shadow-sm"
+              type="text"
+              id="name"
+              name="name"
+              value={formData.name}
+              onChange={handleChange} required />
+          </div>
+          <div className=".gap-1 flex gap-10  ">
+            <label htmlFor="carType">carType :</label>
+            <input className="rounded-2xl border border-gray-200 bg-white text-gray-800 p-1 shadow-sm"
+              type="text"
+              id="carType"
+              name="carType"
+              value={formData.carDetails.carType}
+              onChange={handleCarDetailsChange} required />
+          </div>
+          <div className=".gap-1 flex gap-10  ">
+            <label htmlFor="carModel">carModel :</label>
+            <input className="rounded-2xl border border-gray-200 bg-white text-gray-800 p-1 shadow-sm"
+              type="text"
+              id="carModel"
+              name="carModel"
+              value={formData.carDetails.carModel}
+              onChange={handleCarDetailsChange} required />
+          </div>
+          <div className=".gap-1 flex gap-10  ">
+            <label htmlFor="carMade">carMade :</label>
+            <input className="rounded-2xl border border-gray-200 bg-white text-gray-800 p-1 shadow-sm"
+              type="text"
+              id="carMade"
+              name="carMade"
+              value={formData.carDetails.carMade}
+              onChange={handleCarDetailsChange} required />
+          </div>
+          <div className=".gap-1 flex gap-10  ">
+            <label htmlFor="carYear">carYear :</label>
+            <input className="rounded-2xl border border-gray-200 bg-white text-gray-800 p-1 shadow-sm"
+              type="text"
+              id="carYear"
+              name="carYear"
+              value={formData.carDetails.carYear}
+              onChange={handleCarDetailsChange} required />
+          </div>
+          <div className=".gap-1 flex gap-10  ">
+            <label htmlFor="image">image :</label>
+            <input className="rounded-2xl border border-gray-200 bg-white text-gray-800 p-1 shadow-sm"
+              type="text"
+              id="image"
+              name="image"
+              value={formData.image}
+              onChange={handleChange} required />
+          </div>
+          <div className=".gap-1 flex gap-10  ">
+            <label htmlFor="description">description :</label>
+            <textarea className="rounded-2xl border border-gray-200 bg-white text-gray-800 p-1 shadow-sm"
+              name="description"
+              id="description"
+              rows="8"
+              cols="35"
+              value={formData.description}
+              onChange={handleChange} required />
+          </div>
+          <button>Submit Request</button>
+        </form>
 
 
-        </div>
+      </div>
       <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
         <div className="mb-4 max-h-[60vh] overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 p-4">
           {messages.length === 0 && (
