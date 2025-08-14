@@ -5,7 +5,27 @@
 
 @layer base {
   html, body {
-    background-color: #f5f4f4; 
+    background-color: #b4b4b4e7; 
     color: #ffffff;
   }
 }
+
+@keyframes slideFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-50px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-fade {
+  animation: slideFadeIn 1s ease-out forwards;
+}
+
+.animate-delay-200 {
+  animation-delay: 0.2s;
+}
+

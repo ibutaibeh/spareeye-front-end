@@ -45,6 +45,7 @@ export default function EditRequest() {
         };
         setReq(safe);
         setMessages(safe.messages);
+
       } catch (e) {
         console.error(e);
       }
@@ -69,8 +70,10 @@ export default function EditRequest() {
 
   async function onSaveDetails(e) {
     e.preventDefault();
-    if (req.owner && user?._id && String(req.owner) !== String(user._id)) {
+    
+    if (req.owner.id && user?._id && String(req.owner) !== String(user._id)) {
       alert("You are not allowed to edit this request.");
+      
       return;
     }
     try {
