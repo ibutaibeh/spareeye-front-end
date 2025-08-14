@@ -1,0 +1,17 @@
+.profile-container {
+  max-width: 600px;
+  margin: 30px auto;
+  padding: 20px;
+}
+
+.profile-card {
+  background: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.error {
+  color: red;
+  font-weight: bold;
+}
