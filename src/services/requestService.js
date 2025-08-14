@@ -26,6 +26,7 @@ const getRequest = async (requestID) => {
 
 // CREATE
 const createRequest = async (requestFormData) => {
+  console.log(requestFormData)
   try {
     const res = await fetch(BASE_URL, {
       method: 'POST',

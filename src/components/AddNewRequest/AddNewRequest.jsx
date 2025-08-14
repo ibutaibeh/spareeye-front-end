@@ -1,500 +1,320 @@
 // src/pages/AddNewRequest.jsx
-import {
-  useState,
-  useEffect,
-  useLayoutEffect,
-  useContext,
-  useMemo,
-  useRef,
-} from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import { analyzeRequest } from "../../services/analyzeService";
-import { UserContext } from "../../contexts/UserContext";
 import { createRequest } from "../../services/requestService";
+import { UserContext } from "../../contexts/UserContext";
+import {
+  CAR_TYPES,
+  MAKES_BY_TYPE, MODELS,
+  makeYears,
+  looksLikeProduct,
+  makeLinkLabel
+
+} from "../../Helpers/AddRequestHelpers"
 
 const AddNewRequest = () => {
-  /* ------------------------------ Initial Data ------------------------------ */
-  const INITIAL = {
-    name: "",
-    carDetails: { carType: "", carModel: "", carMade: "", carYear: "" },
-    image: "",
-    description: "",
-  };
-
-  /* --------------------------------- State --------------------------------- */
   const { user } = useContext(UserContext);
-  const [requestData, setRequestData] = useState(INITIAL);
 
+  // steps: 1=carType, 2=carMade, 3=carModel, 4=carYear, 5=description, 6=image, 7=analyze
+  const [step, setStep] = useState(1);
+
+  const [data, setData] = useState({
+    carDetails: { carType: "", carMade: "", carModel: "", carYear: "" },
+    description: "",
+    image: "",
+  });
+
+  // chat messages: {role: 'assistant'|'user', text, options?, links?}
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [files, setFiles] = useState([]); // File objects
-  const [previews, setPreviews] = useState([]); // { url, name, size }
-  const [sending, setSending] = useState(false);
 
-  // Wizard step: 0 = greeting, then 1..7 for fields, 8 = analyze/summary
-  const [step, setStep] = useState(0);
-  const hasStarted = useMemo(
-    () => messages.some((m) => m.role === "user"),
-    [messages]
-  );
+  // files for step 6
+  const [files, setFiles] = useState([]);
+  const [allFiles, setAllFiles] = useState([]);
+  const endRef = useRef(null);
 
-  /* ------------------------- AUTOSCROLL REFS & HELPERS ------------------------- */
-  const scrollRef = useRef(null); // scrollable messages container
-  const tailRef = useRef(null); // sentinel at the end of the list
-  const composerRef = useRef(null); // fixed composer
-  const [composerH, setComposerH] = useState(112); // dynamic bottom inset for messages
-
-  const scrollToBottom = (behavior = "auto") => {
-    if (scrollRef.current) {
-      requestAnimationFrame(() => {
-        scrollRef.current.scrollTo({
-          top: scrollRef.current.scrollHeight,
-          behavior,
-        });
-      });
-    } else if (tailRef.current) {
-      tailRef.current.scrollIntoView({ block: "end", behavior });
-    }
-  };
-
-  // Scroll on first render and whenever messages change
-  const initialScrollDone = useRef(false);
+  // scroll to bottom when messages change
   useEffect(() => {
-    scrollToBottom(initialScrollDone.current ? "smooth" : "auto");
-    initialScrollDone.current = true;
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Scroll when previews (images) change
+  // first greeting + first question
   useEffect(() => {
-    scrollToBottom("smooth");
-  }, [previews]);
-
-  // Keep input visible on resize (e.g., virtual keyboards)
-  useEffect(() => {
-    const onResize = () => scrollToBottom("auto");
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
-  // Measure composer height dynamically so messages area stops right above it
-  useLayoutEffect(() => {
-    if (!composerRef.current) return;
-    const el = composerRef.current;
-    const setH = () => setComposerH(el.offsetHeight || 112);
-    setH();
-
-    let ro;
-    if (typeof ResizeObserver !== "undefined") {
-      ro = new ResizeObserver(() => setH());
-      ro.observe(el);
-    } else {
-      window.addEventListener("resize", setH);
-    }
-    return () => {
-      if (ro) ro.disconnect();
-      else window.removeEventListener("resize", setH);
+    const hello = {
+      role: "assistant",
+      text: `Hello ${user?.username || "there"}, let's collect your car details.`,
     };
-  }, []);
-
-  /* ------------------------------ Step Config ------------------------------- */
-  const STEP_FLOW = [
-    null,
-    {
-      key: "name",
-      prompt: "What is your car type?",
-      apply: (d, v) => ({ ...d, name: v }),
-    },
-    {
-      key: "carType",
-      prompt: "What is your car model?",
-      apply: (d, v) => ({ ...d, carDetails: { ...d.carDetails, carType: v } }),
-    },
-    {
-      key: "carModel",
-      prompt: "What is your car make?",
-      apply: (d, v) => ({ ...d, carDetails: { ...d.carDetails, carModel: v } }),
-    },
-    {
-      key: "carMade",
-      prompt: "What is the manufacture year?",
-      apply: (d, v) => ({ ...d, carDetails: { ...d.carDetails, carMade: v } }),
-    },
-    {
-      key: "carYear",
-      prompt: "Do you want to share more details?",
-      apply: (d, v) => ({ ...d, carDetails: { ...d.carDetails, carYear: v } }),
-    },
-    {
-      key: "description",
-      prompt: "Do you have a photo of the damaged part?",
-      apply: (d, v) => ({ ...d, description: v }),
-    },
-    {
-      key: "image",
-      prompt: "Please wait while I analyze the data...",
-      apply: (d, v) => ({ ...d, image: v }),
-    },
-  ];
-  const LAST_STEP_INDEX = 7;
-
-  /* ------------------------------ Side Effects ------------------------------ */
-  // Initial greeting
-  useEffect(() => {
-    setMessages([
-      {
-        role: "assistant",
-        text: `Hello ${user?.username || "there"}, how can I assist you today?`,
-      },
-    ]);
-    setStep(1);
+    setMessages([hello]);
+    askNext(1, {
+      carDetails: { carType: "", carMade: "", carModel: "", carYear: "" },
+      description: "",
+      image: "",
+    });
   }, [user?.username]);
 
-  // Generate preview URLs for selected files; clean up on change
-  useEffect(() => {
-    const created = files.map((f) => ({
-      url: URL.createObjectURL(f),
-      name: f.name,
-      size: f.size,
-    }));
-    setPreviews(created);
-    return () => created.forEach((p) => URL.revokeObjectURL(p.url));
-  }, [files]);
+  const askNext = (s, currentData) => {
+    let prompt = "";
+    let options = [];
 
-  /* -------------------------------- Handlers -------------------------------- */
-  const handleFiles = (e) => setFiles(Array.from(e.target.files || []));
-  const removeFileAt = (idx) => setFiles((arr) => arr.filter((_, i) => i !== idx));
-  const clearFiles = () => setFiles([]);
+    if (s === 1) {
+      prompt = "Select your car type (or type your own):";
+      options = CAR_TYPES;
+    } else if (s === 2) {
+      prompt = `Select the car make for ${currentData.carDetails.carType}:`;
+      options = MAKES_BY_TYPE[currentData.carDetails.carType] || [];
+    } else if (s === 3) {
+      prompt = `Select the model for ${currentData.carDetails.carMade}:`;
+      const byMake = MODELS[currentData.carDetails.carMade] || {};
+      options = byMake[currentData.carDetails.carType] || [];
+    } else if (s === 4) {
+      prompt = "Select the year of manufacture:";
+      options = makeYears(2000);
+    } else if (s === 5) {
+      prompt = "Describe the issue (you can type it below):";
+      options = [];
+    } else if (s === 6) {
+      prompt = "Attach photos (optional) or type 'Skip':";
+      options = ["Skip"];
+    } else if (s === 7) {
+      prompt = "Analyzing your data…";
+      options = [];
+    }
 
-  const pushMessage = (msg) => setMessages((m) => [...m, msg]);
+    setMessages((m) => [...m, { role: "assistant", text: prompt, options }]);
+  }
 
-  const handleSend = async () => {
-    if (sending || (!input && files.length === 0)) return;
+  function pushUserMessage(text) {
+    setMessages((m) => [...m, { role: "user", text }]);
+  }
 
-    // Snapshot current inputs to attach to this user turn
-    const userText = input.trim();
-    const userFiles = files.slice();
-    const userPreviewSnapshot = previews.slice(); // avoid losing previews after clear
+  async function handleAnswer(answerText) {
+    // show user turn
+    pushUserMessage(answerText);
 
-    // Show user message
-    pushMessage({ role: "user", text: userText, files: userPreviewSnapshot });
-    setSending(true);
+    // save to data
+    let d = { ...data };
+    if (step === 1) d.carDetails.carType = answerText;
+    if (step === 2) d.carDetails.carMade = answerText;
+    if (step === 3) d.carDetails.carModel = answerText;
+    if (step === 4) d.carDetails.carYear = answerText;
+    if (step === 5) d.description = answerText;
+    if (step === 6) d.image = answerText === "Skip" ? "" : answerText;
 
-    // Clear composer immediately for a snappy UX
-    setInput("");
-    setFiles([]);
-    scrollToBottom("smooth");
+    setData(d);
+
+    // next step
+    const next = step + 1;
+    setStep(next);
+
+    if (next === 7) {
+      // analysis
+      setMessages((m) => [...m, { role: "assistant", text: "Analyzing your data…" }]);
+      await runAnalysis(d, allFiles);
+      setStep(1)
+      return;
+    }
+
+    // ask next question
+    askNext(next, d);
+  }
+
+  async function runAnalysis(d, filesToSend) {
+    // Build a clear prompt that forces deep product links
+    const prompt =
+      `I have a ${d.carDetails.carMade} ${d.carDetails.carModel} ${d.carDetails.carType} ${d.carDetails.carYear} car.\n` +
+      `Problem description: ${d.description}.\n\n` +
+      `VERY IMPORTANT: In the JSON field "recommended_websites", return ONLY direct product pages (deep links) for the exact spare part(s)` +
+      ` that match this car make/model/year and the likely part. No homepages or generic category pages. Provide 3–8 items,` +
+      ` each as {"title":"...","url":"https://..."} with full URLs (not shortened).`;
 
     try {
-      // Apply current step's data mapping and ask next question
-      if (step >= 1 && step <= LAST_STEP_INDEX) {
-        const { apply, prompt } = STEP_FLOW[step];
+      const { result } = await analyzeRequest({ userText: prompt, files: filesToSend || [] });
 
-        setRequestData((prev) => apply(prev, userText));
-        pushMessage({ role: "assistant", text: prompt });
-
-        const next = step + 1;
-        setStep(next);
-
-        // If we just advanced beyond LAST_STEP_INDEX, run analysis next
-        if (next > LAST_STEP_INDEX) {
-          await runAnalysisAndPersist(userFiles);
-        }
-      } else {
-        // Post-analysis free chat (optional extension point)
+      // show main text
+      const parts = [];
+      if (result?.diagnosis) parts.push(`Diagnosis: ${result.diagnosis}`);
+      if (result?.severity) parts.push(`Severity: ${result.severity}`);
+      if (result?.likely_part_name) parts.push(`Likely part: ${result.likely_part_name}`);
+      if (Array.isArray(result?.repair_steps) && result.repair_steps.length) {
+        parts.push("Repair steps:\n- " + result.repair_steps.join("\n- "));
       }
-    } catch {
-      pushMessage({
-        role: "assistant",
-        text: "Sorry—something went wrong. Please try again.",
-      });
-    } finally {
-      setSending(false);
-      scrollToBottom("smooth");
+      if (Array.isArray(result?.tools_needed) && result.tools_needed.length) {
+        parts.push("Tools needed:\n- " + result.tools_needed.join("\n- "));
+      }
+      if (Array.isArray(result?.safety_notes) && result.safety_notes.length) {
+        parts.push("Safety:\n- " + result.safety_notes.join("\n- "));
+      }
+
+      const text = parts.length ? parts.join("\n\n") : "Analysis complete.";
+      setMessages((m) => [...m, { role: "assistant", text }]);
+
+      if (Array.isArray(result?.recommended_websites) && result.recommended_websites.length) {
+        const links = result.recommended_websites
+          .map((x) => {
+            if (typeof x === "string") return { label: makeLinkLabel(x), url: x };
+            if (x && typeof x === "object") return { label: x.title || makeLinkLabel(x.url || ""), url: x.url || "" };
+            return null;
+          })
+          .filter((x) => x && x.url);
+
+        const deepFirst = links.filter((x) => looksLikeProduct(x.url));
+        const finalLinks = deepFirst.length ? deepFirst : links;
+
+        if (finalLinks.length) {
+          setMessages((m) => [
+            ...m,
+            {
+              role: "assistant",
+              text: "Suggested parts (direct product pages):",
+              links: finalLinks.slice(0, 8),
+            },
+          ]);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      setMessages((m) => [
+        ...m,
+        { role: "assistant", text: "Sorry—something went wrong while analyzing. Please try again." },
+      ]);
     }
-  };
 
-  const runAnalysisAndPersist = async (attachedFiles) => {
-    // Build prompt from latest requestData (use functional read to avoid staleness)
-    const d = ((fn) => {
-      let snap;
-      setRequestData((prev) => ((snap = prev), prev));
-      return snap ?? requestData;
-    })();
-
-    const prompt = `I have a ${d.carDetails.carMade} ${d.carDetails.carModel} ${d.carDetails.carType} ${d.carDetails.carYear} car. The issue: ${d.description}.`;
-
+    // Save to DB
     try {
-      const { result } = await analyzeRequest({
-        userText: prompt,
-        files: attachedFiles,
-      });
+      await createRequest({ ...d, messages: messages });
+    } catch (e) {
+      console.error(e);
+    }
+  }
 
-      const assistantText = [
-        result?.diagnosis && `Diagnosis: ${result.diagnosis}`,
-        result?.severity && `Severity: ${result.severity}`,
-        result?.likely_part_name && `Likely part: ${result.likely_part_name}`,
-        Array.isArray(result?.repair_steps) && result.repair_steps.length
-          ? `Repair steps:\n- ${result.repair_steps.join("\n- ")}`
-          : "",
-        Array.isArray(result?.tools_needed) && result.tools_needed.length
-          ? `Tools needed:\n- ${result.tools_needed.join("\n- ")}`
-          : "",
-        Array.isArray(result?.safety_notes) && result.safety_notes.length
-          ? `Safety:\n- ${result.safety_notes.join("\n- ")}`
-          : "",
-        Array.isArray(result?.recommended_websites) &&
-        result.recommended_websites.length
-          ? `Where to buy:\n${result.recommended_websites.join("\n")}`
-          : "",
-      ]
-        .filter(Boolean)
-        .join("\n\n");
+  // Send text
+  const onSend = async () => {
+    const txt = input.trim();
 
-      pushMessage({
-        role: "assistant",
-        text: assistantText || "Analysis complete.",
-      });
-    } catch {
-      pushMessage({
-        role: "assistant",
-        text: "Sorry—something went wrong while analyzing. Please try again.",
-      });
+    if (!txt && step !== 6) return;
+
+    if (step === 6 && files.length) {
+      setAllFiles((prev) => [...prev, ...files]);
+      setFiles([]);
+      await handleAnswer("[images attached]");
+      setInput("");
+      return;
     }
 
-    // Persist request with full conversation snapshot
-    try {
-      const payload = { ...requestData, messages: [...messages] };
-      await createRequest(payload);
-    } catch {
-      // Optional: toast error; keep silent
-    } finally {
-      scrollToBottom("smooth");
-    }
+    await handleAnswer(txt);
+    setInput("");
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+  const pickOption = async (opt) => {
+    await handleAnswer(opt);
   };
 
-  /* ---------------------------------- UI ----------------------------------- */
+  const onChooseFiles = (e) => {
+    const list = Array.from(e.target.files || []);
+    setFiles(list);
+  };
+
   return (
-    // IMPORTANT: this page stays overflow-hidden so only the messages area scrolls
-    <div className="h-screen w-full overflow-hidden text-gray-900 relative">
-      {!hasStarted ? (
-        // Landing: centered input like ChatGPT's first screen
-        <div className="h-full mx-auto max-w-3xl px-4 flex flex-col items-center justify-center">
-          <div className="w-full space-y-6">
-            <h1 className="text-center text-2xl font-semibold">New Request</h1>
+    <div className="w-full overflow-hidden text-gray-900 relative">
+      {/* Messages area */}
+      <div className="h-full mx-auto w-full max-w-5xl px-4 pt-4 overflow-y-auto" style={{ paddingBottom: 112 }}>
+        <ul className="space-y-4">
+          {messages.map((m, i) => {
+            const isUser = m.role === "user";
+            const isLast = i === messages.length - 1;
+            const hasOptions = Array.isArray(m.options) && m.options.length > 0;
+            const hasLinks = Array.isArray(m.links) && m.links.length > 0;
 
-            {previews.length > 0 && (
-              <div className="rounded-xl border border-dashed border-gray-300 bg-white p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="text-sm font-medium text-gray-700">
-                    Selected images ({previews.length})
-                  </p>
-                  <button
-                    type="button"
-                    onClick={clearFiles}
-                    className="text-xs font-medium text-gray-600 hover:text-gray-900"
-                    aria-label="Clear all selected images"
-                  >
-                    Clear
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {previews.map((p, idx) => (
-                    <div
-                      key={p.url}
-                      className="relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
-                    >
-                      <img
-                        src={p.url}
-                        alt={p.name || `Selected ${idx + 1}`}
-                        className="h-28 w-full object-cover"
-                        onLoad={() => scrollToBottom("auto")}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeFileAt(idx)}
-                        className="absolute right-1 top-1 rounded-md bg-black/60 px-1.5 py-0.5 text-xs text-white hover:bg-black/80"
-                        aria-label={`Remove ${p.name || `image ${idx + 1}`}`}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            return (
+              <li key={i} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+                <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${isUser ? "bg-blue-600 text-white" : "bg-white border border-gray-200 text-gray-900"}`}>
+                  <p className="whitespace-pre-wrap">{m.text}</p>
 
-            <div className="flex gap-2">
-              <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleFiles}
-                  className="hidden"
-                />
-                <span>Upload Images</span>
-              </label>
-
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Describe the issue..."
-                className="flex-1 rounded-xl border border-gray-300 bg-white px-4 py-3 text-base placeholder:text-gray-400 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-              />
-
-              <button
-                type="button"
-                onClick={handleSend}
-                className="rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={sending || (!input && files.length === 0)}
-              >
-                {sending ? "Sending…" : "Send"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        // Chat mode: messages scroll; composer fixed to content area (not under sidebar)
-        <>
-          {/* Scrollable messages only — centered column.
-              Bottom padding matches dynamic composer height so content never hides. */}
-          <div
-            ref={scrollRef}
-            className="h-full mx-auto w-full max-w-5xl px-4 pt-4 overflow-y-auto"
-            style={{ paddingBottom: composerH }}
-          >
-            <ul className="space-y-4">
-              {messages.map((m, i) => {
-                const isUser = m.role === "user";
-                return (
-                  <li
-                    key={i}
-                    className={`flex ${isUser ? "justify-end" : "justify-start"}`}
-                  >
-                    <div
-                      className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                        isUser
-                          ? "bg-blue-600 text-white shadow-md"
-                          : "bg-white text-gray-900 shadow border border-gray-200"
-                      }`}
-                    >
-                      <p className="whitespace-pre-wrap">{m.text}</p>
-
-                      {!!m.files?.length && (
-                        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-                          {m.files.map((p) => (
-                            <img
-                              key={p.url}
-                              src={p.url}
-                              alt={p.name || "attached"}
-                              className="h-24 w-full rounded-lg object-cover border border-gray-200"
-                              onLoad={() => scrollToBottom("auto")}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-
-            {/* sentinel for autoscroll */}
-            <div ref={tailRef} className="h-2" />
-          </div>
-
-          {/* FULL-WIDTH composer across the content area only.
-              NOTE: left-64 aligns with the fixed sidebar width (16rem). */}
-          <div
-            ref={composerRef}
-            className="fixed bottom-0 right-0 left-64 border-t border-gray-200 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60"
-          >
-            {/* Inner width spans full content area; keep some horizontal padding */}
-            <div className="w-full px-4 sm:px-6 lg:px-8 py-3">
-              {previews.length > 0 && (
-                <div className="mb-3 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-3">
-                  <div className="mb-2 flex items-center justify-between">
-                    <p className="text-sm font-medium text-gray-700">
-                      Selected images ({previews.length})
-                    </p>
-                    <button
-                      type="button"
-                      onClick={clearFiles}
-                      className="text-xs font-medium text-gray-600 hover:text-gray-900"
-                    >
-                      Clear
-                    </button>
-                  </div>
-
-                  {/* Thumbnails inside composer — do NOT affect messages scroll */}
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6">
-                    {previews.map((p, idx) => (
-                      <div
-                        key={p.url}
-                        className="relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
-                      >
-                        <img
-                          src={p.url}
-                          alt={p.name || `Selected ${idx + 1}`}
-                          className="h-24 w-full object-cover"
-                          onLoad={() => scrollToBottom("auto")}
-                        />
+                  {!isUser && isLast && hasOptions && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {m.options.map((opt) => (
                         <button
+                          key={opt}
+                          onClick={() => pickOption(opt)}
+                          className="rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs text-gray-800 hover:bg-gray-100"
                           type="button"
-                          onClick={() => removeFileAt(idx)}
-                          className="absolute right-1 top-1 rounded-md bg-black/60 px-1.5 py-0.5 text-xs text-white hover:bg-black/80"
                         >
-                          Remove
+                          {opt}
                         </button>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* link buttons for recommended websites */}
+                  {!isUser && hasLinks && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {m.links.map((lnk, idx) => (
+                        <a
+                          key={lnk.url + idx}
+                          href={lnk.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs text-gray-800 hover:bg-gray-100"
+                          title={lnk.url}
+                        >
+                          {lnk.label || "Open link"}
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
+              </li>
+            );
+          })}
+        </ul>
+        <div ref={endRef} />
+      </div>
 
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={handleFiles}
-                    className="hidden"
-                  />
-                  <span>Upload Images</span>
-                </label>
+      <div className="fixed bottom-0 right-0 left-64 border-t border-gray-200 bg-white">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-3 flex flex-col gap-3 sm:flex-row">
+          <label className="inline-flex cursor-pointer items-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm">
+            <input type="file" accept="image/*" multiple onChange={onChooseFiles} className="hidden" />
+            <span>Upload Images</span>
+          </label>
 
-                <textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Describe the issue..."
-                  rows={1}
-                  className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-2 text-gray-900 placeholder:text-gray-400 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-                />
+          <textarea
+            rows={1}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                onSend();
+              }
+            }}
+            placeholder={step === 5 ? "Describe the issue…" : "Type here (or tap a chip above)…"}
+            className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-2"
+          />
 
-                <button
-                  type="button"
-                  onClick={handleSend}
-                  className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-gray-900/20 disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={sending || (!input && files.length === 0)}
-                >
-                  {sending ? "Sending…" : "Send"}
-                </button>
-              </div>
+          <button
+            onClick={onSend}
+            className="rounded-xl bg-gray-900 px-5 py-2 text-sm font-semibold text-white hover:bg-black/90"
+          >
+            Send
+          </button>
+        </div>
+
+        {/* thumbnails preview for the current chosen files */}
+        {files.length > 0 && (
+          <div className="px-4 pb-3">
+            <p className="text-xs text-gray-600 mb-2">Selected images ({files.length})</p>
+            <div className="flex gap-2 flex-wrap">
+              {files.map((f, idx) => (
+                <span key={idx} className="text-xs text-gray-700 border px-2 py-1 rounded">
+                  {f.name}
+                </span>
+              ))}
             </div>
           </div>
-        </>
-      )}
+        )}
+      </div>
     </div>
   );
-};
+}
 
 export default AddNewRequest;
