@@ -33,19 +33,6 @@ const AddNewRequest = () => {
   const [allFiles, setAllFiles] = useState([]); // uploaded URLs used for analysis
   const endRef = useRef(null);
 
-  /* ----------------------------- TTS helpers ----------------------------- */
-  const canSpeak = () => typeof window !== "undefined" && "speechSynthesis" in window;
-  const speak = (text) => {
-    if (!canSpeak() || !text) return;
-    const synth = window.speechSynthesis;
-    try { synth.cancel(); } catch {}
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = "en-US";
-    u.rate = 1;
-    u.pitch = 1;
-    synth.speak(u);
-  };
-
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -95,9 +82,6 @@ const AddNewRequest = () => {
     // Assistant prompts
     setMessages((m) => [...m, { role: "assistant", text: prompt, options }]);
 
-    // Speak the assistant prompt triggered by the user's Send.
-    // (This is the “read the messages every time I press send” behavior.)
-    speak(prompt);
   };
 
   /* -------------------------- Save Data helper -------------------------- */
@@ -124,7 +108,7 @@ const AddNewRequest = () => {
 
   /* ------------------------------ Chat flow ------------------------------- */
   function buildUserTurn(text, imageUrls = []) {
-    const safeText = text && text.trim() ? text.trim() : (imageUrls.length ? "[images attached]" : "");
+    const safeText = text && text.trim() ? text.trim() : (imageUrls.length ? "" : "");
     return { role: "user", text: safeText, imageUrls };
   }
 
@@ -150,9 +134,7 @@ const AddNewRequest = () => {
     setStep(next);
 
     if (next === 7) {
-      // Briefly speak the analyzing status (optional but aligned with “on send”).
       setMessages((m) => [...m, { role: "assistant", text: "Analyzing your data…" }]);
-      speak("Analyzing your data.");
       await runAnalysis(dNext, allFiles);
       setStep(1);
       return;
@@ -242,9 +224,6 @@ const AddNewRequest = () => {
       return next;
     });
 
-    // 🔊 For the analyzer’s final output, do NOT read the whole message.
-    // Read only a concise confirmation line:
-    speak("Here is the solution of your issue.");
   }
 
   // Upload selected files, return URLs
@@ -267,7 +246,6 @@ const AddNewRequest = () => {
       } catch (e) {
         console.error(e);
         setMessages((m) => [...m, { role: "assistant", text: "Failed to upload images. Try again." }]);
-        // Optional: speak errors if you want. Currently muted for errors.
       } finally {
         setInput("");
       }
