@@ -1,13 +1,40 @@
 // src/pages/EditRequest.jsx
-import React, { useState, useEffect, useRef, useContext } from "react";
+import React, { useState, useEffect, useRef, useContext, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { UserContext } from "../../contexts/UserContext";
-import { getRequest, updateRequest } from "../../services/requestService";
+import {
+  getRequest,
+  updateRequest,
+  uploadImages as uploadImagesAPI,
+} from "../../services/requestService";
+import { analyzeRequest } from "../../services/analyzeService";
+import {
+  CAR_TYPES,
+  MAKES_BY_TYPE,
+  MODELS,
+  makeYears,
+  looksLikeProduct,
+  makeLinkLabel,
+  toAbs
+} from "../../Helpers/AddRequestHelpers";
+import MessagesArea from "../ChatBotComponenets/MessagesArea";
+import BottomComposer from "../ChatBotComponenets/BottomComposer";
+import TopForm from "./TopForm";
+import MessagesAreaEdit from "../ChatBotComponenets/MessagesAreaEdit";
+import BottomComposerEdit from "../ChatBotComponenets/BottomComposerEdit";
 
+/* ----------------------------- Component ----------------------------- */
 export default function EditRequest() {
   const { reqId } = useParams();
   const navigate = useNavigate();
   const { user } = useContext(UserContext);
+
+  const [step, setStep] = useState(1);
+  const [data, setData] = useState({
+    carDetails: { carType: "", carMade: "", carModel: "", carYear: "" },
+    description: "",
+    image: "",
+  });
 
   const [req, setReq] = useState({
     name: "",
@@ -21,31 +48,78 @@ export default function EditRequest() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [files, setFiles] = useState([]); // for the next outgoing message
-
+  const [files, setFiles] = useState([]);
+  const [allFiles, setAllFiles] = useState([]);
   const endRef = useRef(null);
 
-  // Load request once
+  const galleryUrls = useMemo(() => {
+    const fromMessages = [];
+    const arr = Array.isArray(messages) ? messages : [];
+
+    for (let i = 0; i < arr.length; i++) {
+      const m = arr[i];
+      if (m && Array.isArray(m.imageUrls)) {
+        for (let j = 0; j < m.imageUrls.length; j++) {
+          const u = m.imageUrls[j];
+          if (u) fromMessages.push(u);
+        }
+      }
+    }
+
+    const fromReqImage = req && req.image ? [req.image] : [];
+    const merged = fromMessages.concat(fromReqImage)
+      .map((u) => toAbs(u))
+      .filter(Boolean);
+
+    const unique = [];
+    const seen = new Set();
+    for (let k = 0; k < merged.length; k++) {
+      const u = merged[k];
+      if (!seen.has(u)) {
+        seen.add(u);
+        unique.push(u);
+      }
+    }
+    return unique;
+  }, [messages, req && req.image]);
+
+  /* ---------------------------- Load & init ---------------------------- */
   useEffect(() => {
     async function load() {
       try {
-        const data = await getRequest(reqId);
-        const safe = {
-          name: data?.name || "",
+        const doc = await getRequest(reqId);
+        const safeReq = {
+          name: doc?.name || "",
           carDetails: {
-            carType: data?.carDetails?.carType || "",
-            carMade: data?.carDetails?.carMade || "",
-            carModel: data?.carDetails?.carModel || "",
-            carYear: data?.carDetails?.carYear || "",
+            carType: doc?.carDetails?.carType || "",
+            carMade: doc?.carDetails?.carMade || "",
+            carModel: doc?.carDetails?.carModel || "",
+            carYear: doc?.carDetails?.carYear || "",
           },
-          image: data?.image || "",
-          description: data?.description || "",
-          owner: data?.owner || "",
-          messages: Array.isArray(data?.messages) ? data.messages : [],
+          image: doc?.image || "",
+          description: doc?.description || "",
+          owner: doc?.owner || "",
+          messages: Array.isArray(doc?.messages) ? doc.messages : [],
         };
-        setReq(safe);
-        setMessages(safe.messages);
+        setReq(safeReq);
+        setMessages(safeReq.messages);
+        setData({
+          carDetails: safeReq.carDetails,
+          description: safeReq.description,
+          image: safeReq.image || "",
+        });
 
+        // Collect any previously uploaded image URLs
+        const priorUrls =
+          safeReq.messages
+            .filter((m) => Array.isArray(m.imageUrls) && m.imageUrls.length > 0)
+            .flatMap((m) => m.imageUrls) || [];
+        setAllFiles(priorUrls);
+
+        // Determine current step and show the next prompt
+        const s = computeCurrentStep(safeReq.carDetails, safeReq.description, safeReq.messages);
+        setStep(s);
+        showPrompt(s, safeReq.carDetails);
       } catch (e) {
         console.error(e);
       }
@@ -53,78 +127,255 @@ export default function EditRequest() {
     load();
   }, [reqId]);
 
-  // Keep view pinned to the latest message
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // ------- Form handlers -------
-  function onFormChange(e) {
-    const { name, value } = e.target;
-    if (name in (req.carDetails || {})) {
-      setReq((r) => ({ ...r, carDetails: { ...r.carDetails, [name]: value } }));
-    } else {
-      setReq((r) => ({ ...r, [name]: value }));
+  /* -------------------------- Wizard helpers -------------------------- */
+  function imageStepCompleted(msgs = []) {
+    return msgs.some(
+      (m) => m.role === "user" && ((Array.isArray(m.imageUrls) && m.imageUrls.length > 0) || (m.text || "").toLowerCase() === "skip")
+    );
+  }
+
+  function computeCurrentStep(carDetails, description, msgs) {
+    if (!carDetails?.carType) return 1;
+    if (!carDetails?.carMade) return 2;
+    if (!carDetails?.carModel) return 3;
+    if (!carDetails?.carYear) return 4;
+    if (!description) return 5;
+    if (!imageStepCompleted(msgs)) return 6;
+    return 7;
+  }
+
+  function promptAndOptionsForStep(s, currentData) {
+    if (s === 1) return { text: "Select your car type (or type your own):", options: CAR_TYPES };
+    if (s === 2) return { text: `Select the car make for ${currentData.carType}:`, options: MAKES_BY_TYPE[currentData.carType] || [] };
+    if (s === 3) {
+      const byMake = MODELS[currentData.carMade] || {};
+      return { text: `Select the model for ${currentData.carMade}:`, options: byMake[currentData.carType] || [] };
+    }
+    if (s === 4) return { text: "Select the year of manufacture:", options: makeYears(2000) };
+    if (s === 5) return { text: "Describe the issue (you can type it below):", options: [] };
+    if (s === 6) return { text: "Attach photos (optional) or type 'Skip':", options: ["Skip"] };
+    if (s === 7) return { text: "Analyzing your data…", options: [] };
+    return { text: "", options: [] };
+  }
+
+  function showPrompt(s, car) {
+    const { text, options } = promptAndOptionsForStep(s, car);
+    if (!text) return;
+    const last = messages[messages.length - 1];
+    const already = last && last.role === "assistant" && last.text === text;
+    if (!already) {
+      setMessages((m) => [...m, { role: "assistant", text, options }]);
     }
   }
 
-  async function onSaveDetails(e) {
-    e.preventDefault();
-    
-    if (req.owner.id && user?._id && String(req.owner) !== String(user._id)) {
-      alert("You are not allowed to edit this request.");
-      
+  /* -------------------------- Save Data helper -------------------------- */
+  async function updateData(data, messagesSnapshot) {
+    const updatedData = {
+      carDetails: data.carDetails,
+      image: data.image || "",
+      description: data.description || "",
+      messages: messagesSnapshot,
+      name: req.name || "",
+    };
+    try {
+      await updateRequest(reqId, updatedData);
+      setReq((r) => ({ ...r, ...updatedData }));
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  /* ---------------------------- Chat actions --------------------------- */
+  function buildUserTurn(text, imageUrls = []) {
+    const safeText = text && text.trim() ? text.trim() : (imageUrls.length ? "[images attached]" : "");
+    return { role: "user", text: safeText, imageUrls };
+  }
+
+  async function handleAnswer(answerText, imageUrls = []) {
+    // Select data based on step
+    const dNext = { ...data };
+    if (step === 1) dNext.carDetails.carType = answerText || dNext.carDetails.carType;
+    if (step === 2) dNext.carDetails.carMade = answerText || dNext.carDetails.carMade;
+    if (step === 3) dNext.carDetails.carModel = answerText || dNext.carDetails.carModel;
+    if (step === 4) dNext.carDetails.carYear = answerText || dNext.carDetails.carYear;
+    if (step === 5) dNext.description = answerText || dNext.description;
+    if (step === 6) {
+      if (imageUrls.length) dNext.image = imageUrls[0];
+      if ((answerText || "").toLowerCase() === "skip") dNext.image = dNext.image || "";
+    }
+    setData(dNext);
+
+    // Append the user message and update data on DB
+    const userTurn = buildUserTurn(answerText, imageUrls);
+    const nextMsgs = [...messages, userTurn];
+    setMessages(nextMsgs);
+    await updateData(dNext, nextMsgs);
+
+    // 3) Move flow forward
+    const nextStep = computeCurrentStep(dNext.carDetails, dNext.description, nextMsgs);
+    setStep(nextStep);
+
+    if (nextStep === 7) {
+      setMessages((m) => [...m, { role: "assistant", text: "Analyzing your data…" }]); // UI hint, not persisted yet
+      await runAnalysis(dNext, allFiles);
       return;
     }
-    try {
-      await updateRequest(reqId, { ...req, messages });
-      navigate("/requests");
-    } catch (e) {
-      console.error(e);
-      alert("Failed to save. Please try again.");
-    }
+
+    // Show next prompt 
+    showPrompt(nextStep, dNext.carDetails);
   }
 
-  // ------- Chat handlers -------
+  async function runAnalysis(d, urlsForAnalysis = []) {
+    const hasImages = Array.isArray(urlsForAnalysis) && urlsForAnalysis.length > 0;
+
+    const prompt =
+      `I have a ${d.carDetails.carMade} ${d.carDetails.carModel} ${d.carDetails.carType} ${d.carDetails.carYear} car.\n` +
+      `Problem description: ${d.description}.\n\n` +
+      `VERY IMPORTANT: In the JSON field "recommended_websites", return ONLY direct product pages (deep links) for the exact spare part(s)` +
+      ` that match this car make/model/year and the likely part. Provide 3–8 items,` +
+      ` each as {"title":"...","url":"https://...","image":"https://...(optional og:image)"} with full URLs.`;
+
+    const pendingAssistant = [];
+    let preface = hasImages ? "" : "No images attached. Running text-only analysis.\n\n";
+
+    let result = null;
+    try {
+      const { result: r } = await analyzeRequest({ userText: prompt, imageUrls: urlsForAnalysis || [] });
+      result = r || null;
+    } catch (e) {
+      console.error(e);
+      preface += hasImages
+        ? "We couldn’t analyze your images due to an error. "
+        : "Analysis encountered an error. ";
+      preface += "You can try again or attach photos for better accuracy.\n\n";
+    }
+
+    if (result) {
+      const parts = [];
+      if (result?.diagnosis) parts.push(`Diagnosis: ${result.diagnosis}`);
+      if (result?.severity) parts.push(`Severity: ${result.severity}`);
+      if (result?.likely_part_name) parts.push(`Likely part: ${result.likely_part_name}`);
+      if (Array.isArray(result?.repair_steps) && result.repair_steps.length) {
+        parts.push("Repair steps:\n- " + result.repair_steps.join("\n- "));
+      }
+      if (Array.isArray(result?.tools_needed) && result.tools_needed.length) {
+        parts.push("Tools needed:\n- " + result.tools_needed.join("\n- "));
+      }
+      if (Array.isArray(result?.safety_notes) && result.safety_notes.length) {
+        parts.push("Safety:\n- " + result.safety_notes.join("\n- "));
+      }
+
+      const body = parts.length ? parts.join("\n\n") : "Analysis complete (no specific findings).";
+      pendingAssistant.push({ role: "assistant", text: preface + body });
+
+      if (Array.isArray(result?.recommended_websites) && result.recommended_websites.length) {
+        const links = result.recommended_websites
+          .map((x) => {
+            if (typeof x === "string") return { label: makeLinkLabel(x), url: x };
+            if (x && typeof x === "object")
+              return {
+                label: x.title || makeLinkLabel(x.url || ""),
+                url: x.url || "",
+                image: x.image || "",
+              };
+            return null;
+          })
+          .filter(Boolean);
+        const deepFirst = links.filter((x) => looksLikeProduct(x.url));
+        const finalLinks = deepFirst.length ? deepFirst : links;
+        if (finalLinks.length) {
+          pendingAssistant.push({
+            role: "assistant",
+            text: "Suggested parts (direct product pages):",
+            links: finalLinks.slice(0, 8),
+          });
+        }
+      }
+    } else {
+      pendingAssistant.push({
+        role: "assistant",
+        text: preface || "Analysis could not run. Please try again.",
+      });
+    }
+
+    // Append assistant messages,
+    setMessages((prev) => {
+      const safePrev = Array.isArray(prev) ? prev : [];
+      const next = [...safePrev, ...pendingAssistant];
+
+      updateData(
+        {
+          carDetails: d.carDetails,
+          image: d.image || "",
+          description: d.description || "",
+        },
+        next
+      ).catch(console.error);
+      queueMicrotask(() => {
+        setStep(1);
+        showPrompt(1, d.carDetails);
+      });
+
+      return next;
+    });
+
+  }
+
+  /* ------------------------------ UI events ----------------------------- */
   function onPickFiles(e) {
     setFiles(Array.from(e.target.files || []));
   }
 
-  async function sendMessage(text) {
+  async function onSend() {
     if (sending) return;
-    const trimmed = (text ?? "").trim();
-    if (!trimmed && files.length === 0) return;
 
+    // Step 6: handle image upload
+    if (step === 6 && files.length) {
+      setSending(true);
+      try {
+        const { urls } = await uploadImagesAPI(files);
+        const abs = (urls || []).map(toAbs);
+        setFiles([]);
+        setAllFiles((prev) => [...prev, ...abs]);
+        await handleAnswer("", abs);
+      } catch (e) {
+        console.error(e);
+        setMessages((m) => [...m, { role: "assistant", text: "Failed to upload images. Try again." }]);
+      } finally {
+        setSending(false);
+      }
+      return;
+    }
+
+    // Normal text entry
+    const trimmed = (input || "").trim();
+    if (!trimmed && step !== 6) return;
     setSending(true);
-
-    const fileDisplay = files.map((f) => ({ url: "", name: f.name, size: f.size }));
-    const userTurn = {
-      role: "user",
-      text: trimmed || (files.length ? "[images attached]" : ""),
-      files: fileDisplay.length ? fileDisplay : undefined,
-    };
-
-    const newMessages = [...messages, userTurn];
-    setMessages(newMessages);
-    setInput("");
-    setFiles([]);
-
     try {
-      await updateRequest(reqId, { ...req, messages: newMessages });
-      setReq((r) => ({ ...r, messages: newMessages }));
-    } catch (e) {
-      console.error(e);
+      await handleAnswer(trimmed);
+      setInput("");
     } finally {
       setSending(false);
     }
   }
 
-  function onSend() {
-    sendMessage(input);
+  function onQuickOption(opt) {
+    setInput("");
+    onSendAnswer(opt);
   }
 
-  function onQuickOption(opt) {
-    sendMessage(opt);
+  async function onSendAnswer(opt) {
+    if (sending) return;
+    setSending(true);
+    try {
+      await handleAnswer(opt);
+    } finally {
+      setSending(false);
+    }
   }
 
   function onKeyDown(e) {
@@ -134,207 +385,17 @@ export default function EditRequest() {
     }
   }
 
+  /* -------------------------------- Render ------------------------------ */
   return (
     <div className="min-h-screen w-full text-gray-900 bg-gray-50 flex flex-col">
-      {/* ---------- TOP FORM (always visible; page scrolls) ---------- */}
-      <div className="mx-auto w-full max-w-5xl px-4 pt-4">
-        <form onSubmit={onSaveDetails} className="rounded-xl border border-gray-200 bg-white p-4 space-y-4">
-          <h2 className="text-lg font-semibold">Edit Request</h2>
+      {/* ---------- TOP FORM ---------- */}
+      <TopForm setReq={setReq} messages={messages} setData={setData} updateData={updateData} navigate={navigate} data={data} req={req} galleryUrls={galleryUrls} />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <label className="flex flex-col text-sm">
-              <span className="mb-1">Name</span>
-              <input
-                name="name"
-                value={req.name}
-                onChange={onFormChange}
-                className="border rounded-lg px-3 py-2"
-                placeholder="Optional title"
-              />
-            </label>
+      {/* ---------- CHAT ---------- */}
+      <MessagesAreaEdit messages={messages} onSendAnswer={onSendAnswer} endRef={endRef} />
 
-            <label className="flex flex-col text-sm">
-              <span className="mb-1">Car Type</span>
-              <input
-                name="carType"
-                value={req.carDetails.carType}
-                onChange={onFormChange}
-                className="border rounded-lg px-3 py-2"
-                placeholder="e.g., Sedan"
-              />
-            </label>
-
-            <label className="flex flex-col text-sm">
-              <span className="mb-1">Car Make</span>
-              <input
-                name="carMade"
-                value={req.carDetails.carMade}
-                onChange={onFormChange}
-                className="border rounded-lg px-3 py-2"
-                placeholder="e.g., Toyota"
-              />
-            </label>
-
-            <label className="flex flex-col text-sm">
-              <span className="mb-1">Car Model</span>
-              <input
-                name="carModel"
-                value={req.carDetails.carModel}
-                onChange={onFormChange}
-                className="border rounded-lg px-3 py-2"
-                placeholder="e.g., Corolla"
-              />
-            </label>
-
-            <label className="flex flex-col text-sm">
-              <span className="mb-1">Car Year</span>
-              <input
-                name="carYear"
-                value={req.carDetails.carYear}
-                onChange={onFormChange}
-                className="border rounded-lg px-3 py-2"
-                placeholder="e.g., 2020"
-              />
-            </label>
-
-            <label className="flex flex-col text-sm md:col-span-2">
-              <span className="mb-1">Image (URL)</span>
-              <input
-                name="image"
-                value={req.image}
-                onChange={onFormChange}
-                className="border rounded-lg px-3 py-2"
-                placeholder="Paste an image URL (optional)"
-              />
-            </label>
-
-            <label className="flex flex-col text-sm md:col-span-2">
-              <span className="mb-1">Description</span>
-              <textarea
-                name="description"
-                value={req.description}
-                onChange={onFormChange}
-                rows={3}
-                className="border rounded-lg px-3 py-2"
-                placeholder="Describe the issue"
-              />
-            </label>
-          </div>
-
-          <div className="flex gap-2">
-            <button type="submit" className="rounded-lg bg-gray-900 text-white text-sm font-semibold px-4 py-2 hover:bg-black/90">
-              Save Changes
-            </button>
-            <button type="button" onClick={() => navigate("/requests")} className="rounded-lg border border-gray-300 text-sm px-4 py-2">
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {/* ---------- CHAT (scrolls between form and composer) ---------- */}
-      <div className="flex-1 mx-auto w-full max-w-5xl px-4 pt-4 overflow-y-auto">
-        <ul className="space-y-4">
-          {messages.map((m, i) => {
-            const isUser = m.role === "user";
-            const isLatestAssistantWithOptions =
-              !isUser && i === messages.length - 1 && Array.isArray(m.options) && m.options.length > 0;
-
-            return (
-              <li key={i} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                  isUser ? "bg-blue-600 text-white" : "bg-white text-gray-900 border border-gray-200"
-                }`}>
-                  <p className="whitespace-pre-wrap">{m.text}</p>
-
-                  {!!m.files?.length && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {m.files.map((f, idx) => (
-                        <span key={(f.name || "file") + idx} className="text-xs border rounded px-2 py-1">
-                          {f.name || "file"}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {isLatestAssistantWithOptions && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {m.options.map((opt) => (
-                        <button
-                          key={opt}
-                          onClick={() => onQuickOption(opt)}
-                          type="button"
-                          className="rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs text-gray-800 hover:bg-gray-100"
-                        >
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {!!m.links?.length && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {m.links.map((lnk, idx) => (
-                        <a
-                          key={(lnk.url || "link") + idx}
-                          href={lnk.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs text-gray-800 hover:bg-gray-100"
-                          title={lnk.url}
-                        >
-                          {lnk.label || "Open link"}
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-        <div ref={endRef} />
-      </div>
-
-      {/* ---------- STICKY COMPOSER (never hides content) ---------- */}
-      <div className="sticky bottom-0 w-full border-t border-gray-200 bg-white">
-        <div className="mx-auto w-full max-w-5xl px-4 py-3 flex flex-col gap-3 sm:flex-row">
-          <label className="inline-flex cursor-pointer items-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm">
-            <input type="file" accept="image/*" multiple onChange={onPickFiles} className="hidden" />
-            <span>Upload Images</span>
-          </label>
-
-          <textarea
-            rows={1}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder="Type a message (or tap a chip above)…"
-            className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-2"
-          />
-
-          <button
-            onClick={onSend}
-            className="rounded-xl bg-gray-900 px-5 py-2 text-sm font-semibold text-white hover:bg-black/90"
-          >
-            Send
-          </button>
-        </div>
-
-        {/* Simple file list preview */}
-        {files.length > 0 && (
-          <div className="mx-auto max-w-5xl px-4 pb-3">
-            <p className="text-xs text-gray-600 mb-2">Selected images ({files.length})</p>
-            <div className="flex gap-2 flex-wrap">
-              {files.map((f, idx) => (
-                <span key={idx} className="text-xs text-gray-700 border px-2 py-1 rounded">
-                  {f.name}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      {/* ---------- STICKY COMPOSER ---------- */}
+      <BottomComposerEdit setInput={setInput} step={step} input={input} onKeyDown={onKeyDown} onSend={onSend} files={files} onPickFiles={onPickFiles} />
     </div>
   );
 }

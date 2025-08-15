@@ -1,39 +1,51 @@
-// src/pages/AddNewRequest.jsx
-import React, { useState, useEffect, useRef, useContext } from "react";
-import { analyzeRequest } from "../../services/analyzeService";
-import { createRequest } from "../../services/requestService";
+import React, { useState, useEffect, useRef, useContext, useMemo } from "react";
+import { analyzeRequest, uploadImages } from "../../services/analyzeService";
+import { createRequest, updateRequest } from "../../services/requestService";
 import { UserContext } from "../../contexts/UserContext";
 import {
   CAR_TYPES,
-  MAKES_BY_TYPE, MODELS,
+  MAKES_BY_TYPE,
+  MODELS,
   makeYears,
   looksLikeProduct,
-  makeLinkLabel
+  makeLinkLabel,
+} from "../../Helpers/AddRequestHelpers";
+import MessagesArea from "../ChatBotComponenets/MessagesArea";
+import BottomComposer from "../ChatBotComponenets/BottomComposer";
 
-} from "../../Helpers/AddRequestHelpers"
-
+/* --------------------------- Page Component --------------------------- */
 const AddNewRequest = () => {
   const { user } = useContext(UserContext);
-
   // steps: 1=carType, 2=carMade, 3=carModel, 4=carYear, 5=description, 6=image, 7=analyze
   const [step, setStep] = useState(1);
-
   const [data, setData] = useState({
     carDetails: { carType: "", carMade: "", carModel: "", carYear: "" },
     description: "",
     image: "",
   });
 
-  // chat messages: {role: 'assistant'|'user', text, options?, links?}
   const [messages, setMessages] = useState([]);
+  const [requestId, setRequestId] = useState(null);
   const [input, setInput] = useState("");
 
   // files for step 6
   const [files, setFiles] = useState([]);
-  const [allFiles, setAllFiles] = useState([]);
+  const [allFiles, setAllFiles] = useState([]); // uploaded URLs used for analysis
   const endRef = useRef(null);
 
-  // scroll to bottom when messages change
+  /* ----------------------------- TTS helpers ----------------------------- */
+  const canSpeak = () => typeof window !== "undefined" && "speechSynthesis" in window;
+  const speak = (text) => {
+    if (!canSpeak() || !text) return;
+    const synth = window.speechSynthesis;
+    try { synth.cancel(); } catch {}
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "en-US";
+    u.rate = 1;
+    u.pitch = 1;
+    synth.speak(u);
+  };
+
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -80,57 +92,101 @@ const AddNewRequest = () => {
       options = [];
     }
 
+    // Assistant prompts
     setMessages((m) => [...m, { role: "assistant", text: prompt, options }]);
+
+    // Speak the assistant prompt triggered by the user's Send.
+    // (This is the “read the messages every time I press send” behavior.)
+    speak(prompt);
+  };
+
+  /* -------------------------- Save Data helper -------------------------- */
+  async function updateData(data, messagesSnapshot) {
+    const updatedData = {
+      carDetails: data.carDetails,
+      image: data.image || "",
+      description: data.description || "",
+      messages: messagesSnapshot,
+    };
+
+    // Either Create new Request or Update
+    try {
+      if (!requestId) {
+        const created = await createRequest(updatedData);
+        if (created?._id) setRequestId(created._id);
+      } else {
+        await updateRequest(requestId, updatedData);
+      }
+    } catch (err) {
+      console.error(err);
+    }
   }
 
-  function pushUserMessage(text) {
-    setMessages((m) => [...m, { role: "user", text }]);
+  /* ------------------------------ Chat flow ------------------------------- */
+  function buildUserTurn(text, imageUrls = []) {
+    const safeText = text && text.trim() ? text.trim() : (imageUrls.length ? "[images attached]" : "");
+    return { role: "user", text: safeText, imageUrls };
   }
 
-  async function handleAnswer(answerText) {
-    // show user turn
-    pushUserMessage(answerText);
+  async function handleAnswer(answerText, imageUrls = []) {
+    // Select data based on step
+    const dNext = { ...data };
+    if (step === 1) dNext.carDetails.carType = answerText || dNext.carDetails.carType;
+    if (step === 2) dNext.carDetails.carMade = answerText || dNext.carDetails.carMade;
+    if (step === 3) dNext.carDetails.carModel = answerText || dNext.carDetails.carModel;
+    if (step === 4) dNext.carDetails.carYear = answerText || dNext.carDetails.carYear;
+    if (step === 5) dNext.description = answerText || dNext.description;
+    if (step === 6) dNext.image = imageUrls.length ? imageUrls[0] : (answerText === "Skip" ? "" : dNext.image);
+    setData(dNext);
 
-    // save to data
-    let d = { ...data };
-    if (step === 1) d.carDetails.carType = answerText;
-    if (step === 2) d.carDetails.carMade = answerText;
-    if (step === 3) d.carDetails.carModel = answerText;
-    if (step === 4) d.carDetails.carYear = answerText;
-    if (step === 5) d.description = answerText;
-    if (step === 6) d.image = answerText === "Skip" ? "" : answerText;
+    // Append the user message and update data on DB
+    const userTurn = buildUserTurn(answerText, imageUrls);
+    const nextUserMessages = [...messages, userTurn];
+    setMessages(nextUserMessages);
+    await updateData(dNext, nextUserMessages);
 
-    setData(d);
-
-    // next step
+    // 3) Move flow forward
     const next = step + 1;
     setStep(next);
 
     if (next === 7) {
-      // analysis
+      // Briefly speak the analyzing status (optional but aligned with “on send”).
       setMessages((m) => [...m, { role: "assistant", text: "Analyzing your data…" }]);
-      await runAnalysis(d, allFiles);
-      setStep(1)
+      speak("Analyzing your data.");
+      await runAnalysis(dNext, allFiles);
+      setStep(1);
       return;
     }
 
-    // ask next question
-    askNext(next, d);
+    askNext(next, dNext);
   }
 
-  async function runAnalysis(d, filesToSend) {
-    // Build a clear prompt that forces deep product links
+  async function runAnalysis(d, urlsForAnalysis = []) {
+    const hasImages = Array.isArray(urlsForAnalysis) && urlsForAnalysis.length > 0;
+
     const prompt =
       `I have a ${d.carDetails.carMade} ${d.carDetails.carModel} ${d.carDetails.carType} ${d.carDetails.carYear} car.\n` +
       `Problem description: ${d.description}.\n\n` +
       `VERY IMPORTANT: In the JSON field "recommended_websites", return ONLY direct product pages (deep links) for the exact spare part(s)` +
-      ` that match this car make/model/year and the likely part. No homepages or generic category pages. Provide 3–8 items,` +
-      ` each as {"title":"...","url":"https://..."} with full URLs (not shortened).`;
+      ` that match this car make/model/year and the likely part. Provide 3–8 items,` +
+      ` each as {"title":"...","url":"https://...","image":"https://...(optional og:image)"} with full URLs.`;
 
+    const pendingAssistant = [];
+    let preface = hasImages ? "" : "No images attached. Running text-only analysis.\n\n";
+
+    let result = null;
     try {
-      const { result } = await analyzeRequest({ userText: prompt, files: filesToSend || [] });
+      const { result: r } = await analyzeRequest({ userText: prompt, imageUrls: urlsForAnalysis || [] });
+      result = r || null;
+    } catch (e) {
+      console.error(e);
+      preface += hasImages
+        ? "We couldn’t analyze your images due to an error. "
+        : "Analysis encountered an error. ";
+      preface += "You can try again or attach photos for better accuracy.\n\n";
+    }
 
-      // show main text
+    if (result) {
       const parts = [];
       if (result?.diagnosis) parts.push(`Diagnosis: ${result.diagnosis}`);
       if (result?.severity) parts.push(`Severity: ${result.severity}`);
@@ -145,62 +201,80 @@ const AddNewRequest = () => {
         parts.push("Safety:\n- " + result.safety_notes.join("\n- "));
       }
 
-      const text = parts.length ? parts.join("\n\n") : "Analysis complete.";
-      setMessages((m) => [...m, { role: "assistant", text }]);
+      const body = parts.length ? parts.join("\n\n") : "Analysis complete (no specific findings).";
+      pendingAssistant.push({ role: "assistant", text: preface + body });
 
       if (Array.isArray(result?.recommended_websites) && result.recommended_websites.length) {
         const links = result.recommended_websites
           .map((x) => {
             if (typeof x === "string") return { label: makeLinkLabel(x), url: x };
-            if (x && typeof x === "object") return { label: x.title || makeLinkLabel(x.url || ""), url: x.url || "" };
+            if (x && typeof x === "object")
+              return {
+                label: x.title || makeLinkLabel(x.url || ""),
+                url: x.url || "",
+                image: x.image || "",
+              };
             return null;
           })
-          .filter((x) => x && x.url);
-
+          .filter(Boolean);
         const deepFirst = links.filter((x) => looksLikeProduct(x.url));
         const finalLinks = deepFirst.length ? deepFirst : links;
-
         if (finalLinks.length) {
-          setMessages((m) => [
-            ...m,
-            {
-              role: "assistant",
-              text: "Suggested parts (direct product pages):",
-              links: finalLinks.slice(0, 8),
-            },
-          ]);
+          pendingAssistant.push({
+            role: "assistant",
+            text: "Suggested parts (direct product pages):",
+            links: finalLinks.slice(0, 8),
+          });
         }
       }
-    } catch (e) {
-      console.error(e);
-      setMessages((m) => [
-        ...m,
-        { role: "assistant", text: "Sorry—something went wrong while analyzing. Please try again." },
-      ]);
+    } else {
+      pendingAssistant.push({
+        role: "assistant",
+        text: preface || "Analysis could not run. Please try again.",
+      });
     }
 
-    // Save to DB
-    try {
-      await createRequest({ ...d, messages: messages });
-    } catch (e) {
-      console.error(e);
-    }
+    // Commit all assistant messages + persist
+    setMessages((prev) => {
+      const safePrev = Array.isArray(prev) ? prev : [];
+      const next = [...safePrev, ...pendingAssistant];
+      updateData(d, next).catch(console.error);
+      return next;
+    });
+
+    // 🔊 For the analyzer’s final output, do NOT read the whole message.
+    // Read only a concise confirmation line:
+    speak("Here is the solution of your issue.");
   }
 
-  // Send text
+  // Upload selected files, return URLs
+  const updateSelectedFiles = async () => {
+    if (!files.length) return [];
+    const { urls } = await uploadImages(files);
+    return urls || [];
+  };
+
+  // Send text or images
   const onSend = async () => {
     const txt = input.trim();
 
-    if (!txt && step !== 6) return;
-
     if (step === 6 && files.length) {
-      setAllFiles((prev) => [...prev, ...files]);
-      setFiles([]);
-      await handleAnswer("[images attached]");
-      setInput("");
+      try {
+        const urls = await updateSelectedFiles();
+        setFiles([]);
+        setAllFiles((prev) => [...prev, ...urls]);
+        await handleAnswer("", urls);
+      } catch (e) {
+        console.error(e);
+        setMessages((m) => [...m, { role: "assistant", text: "Failed to upload images. Try again." }]);
+        // Optional: speak errors if you want. Currently muted for errors.
+      } finally {
+        setInput("");
+      }
       return;
     }
 
+    if (!txt && step !== 6) return;
     await handleAnswer(txt);
     setInput("");
   };
@@ -217,104 +291,19 @@ const AddNewRequest = () => {
   return (
     <div className="w-full overflow-hidden text-gray-900 relative">
       {/* Messages area */}
-      <div className="h-full mx-auto w-full max-w-5xl px-4 pt-4 overflow-y-auto" style={{ paddingBottom: 112 }}>
-        <ul className="space-y-4">
-          {messages.map((m, i) => {
-            const isUser = m.role === "user";
-            const isLast = i === messages.length - 1;
-            const hasOptions = Array.isArray(m.options) && m.options.length > 0;
-            const hasLinks = Array.isArray(m.links) && m.links.length > 0;
+      <MessagesArea messages={messages} pickOption={pickOption} endRef={endRef} />
 
-            return (
-              <li key={i} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${isUser ? "bg-blue-600 text-white" : "bg-white border border-gray-200 text-gray-900"}`}>
-                  <p className="whitespace-pre-wrap">{m.text}</p>
-
-                  {!isUser && isLast && hasOptions && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {m.options.map((opt) => (
-                        <button
-                          key={opt}
-                          onClick={() => pickOption(opt)}
-                          className="rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs text-gray-800 hover:bg-gray-100"
-                          type="button"
-                        >
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* link buttons for recommended websites */}
-                  {!isUser && hasLinks && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {m.links.map((lnk, idx) => (
-                        <a
-                          key={lnk.url + idx}
-                          href={lnk.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs text-gray-800 hover:bg-gray-100"
-                          title={lnk.url}
-                        >
-                          {lnk.label || "Open link"}
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-        <div ref={endRef} />
-      </div>
-
-      <div className="fixed bottom-0 right-0 left-64 border-t border-gray-200 bg-white">
-        <div className="w-full px-4 sm:px-6 lg:px-8 py-3 flex flex-col gap-3 sm:flex-row">
-          <label className="inline-flex cursor-pointer items-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm">
-            <input type="file" accept="image/*" multiple onChange={onChooseFiles} className="hidden" />
-            <span>Upload Images</span>
-          </label>
-
-          <textarea
-            rows={1}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                onSend();
-              }
-            }}
-            placeholder={step === 5 ? "Describe the issue…" : "Type here (or tap a chip above)…"}
-            className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-2"
-          />
-
-          <button
-            onClick={onSend}
-            className="rounded-xl bg-gray-900 px-5 py-2 text-sm font-semibold text-white hover:bg-black/90"
-          >
-            Send
-          </button>
-        </div>
-
-        {/* thumbnails preview for the current chosen files */}
-        {files.length > 0 && (
-          <div className="px-4 pb-3">
-            <p className="text-xs text-gray-600 mb-2">Selected images ({files.length})</p>
-            <div className="flex gap-2 flex-wrap">
-              {files.map((f, idx) => (
-                <span key={idx} className="text-xs text-gray-700 border px-2 py-1 rounded">
-                  {f.name}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Bottom composer */}
+      <BottomComposer
+        setInput={setInput}
+        step={step}
+        input={input}
+        files={files}
+        onChooseFiles={onChooseFiles}
+        onSend={onSend}
+      />
     </div>
   );
-}
+};
 
 export default AddNewRequest;
