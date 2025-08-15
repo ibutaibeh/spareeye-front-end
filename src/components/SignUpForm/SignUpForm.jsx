@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { UserContext } from '../../contexts/UserContext'
 import { useContext, useState } from 'react'
 import { signUp } from '../../services/authService'
@@ -31,9 +31,8 @@ const SignUpForm = () => {
     }
 
     const isFormValid=()=>{
-      return !(username && password && email && password===passwordConf)
+      return (username && password && email && password===passwordConf)
     }
-
   return (
     <>
   <div className="max-w-md mx-auto mt-16 p-6 bg-gray-800 rounded-2xl shadow-lg">
@@ -96,7 +95,7 @@ const SignUpForm = () => {
         <button
           type="submit"
           disabled={!isFormValid()}
-          className="px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+          className="px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:hover:bg-blue-900"
         >
           Sign Up
         </button>
