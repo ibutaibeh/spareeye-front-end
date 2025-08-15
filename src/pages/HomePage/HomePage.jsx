@@ -81,7 +81,7 @@ const HomePage = () => {
           {/* Scrollable content (Outlet) */}
           <div className="p-6">
             {location.pathname === '/' && (
-              <div className="min-h-[84vh] w-full flex flex-col items-center justify-center text-center px-6 bg-gray-900">
+              <div className="min-h-[84vh] w-full flex flex-col items-center justify-center text-center px-6 bg-white dark:bg-gray-900">
                 {/* Logo */}
                 <div className="relative w-80 h-80 mb-8">
                   <img
@@ -92,10 +92,10 @@ const HomePage = () => {
                 </div>
 
                 {/* Welcome Message */}
-                <h1 className="text-6xl font-extrabold text-yellow-100 mb-4 animate-slide-fade">
+                <h1 className="text-6xl font-extrabold  mb-4 animate-slide-fade text-red-700 dark:text-yellow-100">
                   Welcome to SpareEye
                 </h1>
-                <p className="text-xl text-gray-300 mb-10 animate-slide-fade animate-delay-200 max-w-2xl">
+                <p className="text-xl text-[var(--color-header)] dark:text-[var(--color-header)] mb-10 animate-slide-fade animate-delay-200 max-w-2xl">
                   Whenever your car breaks, snap a photo and get instant diagnostics, recommendations, and support—all in one app!
                 </p>
 
@@ -110,6 +110,7 @@ const HomePage = () => {
                       >
                         Add New Request
                       </Link>
+                      
                     </div>
 
                     <button
@@ -143,6 +144,8 @@ const HomePage = () => {
                 </div>
               </div>
             )}
+
+            
             <div>
 
               <Outlet />
