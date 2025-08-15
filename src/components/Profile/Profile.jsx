@@ -122,99 +122,108 @@ const Profile = () => {
   }
 
   return (
-    <div className="min-h-[84vh] w-full flex flex-col items-center px-6 bg-gray-900">
-      <div className="w-full max-w-3xl py-10 space-y-6">
-        <h2 className="text-3xl font-bold text-white">User Profile</h2>
+   <div className="min-h-[84vh] w-full flex flex-col items-center px-6 bg-[var(--color-bg)] dark:bg-[var(--color-bg)]">
+  <div className="w-full max-w-3xl py-10 space-y-6">
+    <h2 className="text-3xl font-bold text-[var(--color-header)] dark:text-[var(--color-header)]">User Profile</h2>
 
-        {error && <div className="bg-red-100 text-red-800 p-3 rounded-lg">{error}</div>}
-        {ok && <div className="bg-green-100 text-green-800 p-3 rounded-lg">{ok}</div>}
+    {error && (
+      <div className="bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 p-3 rounded-lg">
+        {error}
+      </div>
+    )}
+    {ok && (
+      <div className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 p-3 rounded-lg">
+        {ok}
+      </div>
+    )}
 
-        {/* Profile Card */}
-        <div className="bg-gray-100 rounded-xl shadow-lg p-6 space-y-5">
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700">Username</label>
-            <input
-              type="text"
-              name="username"
-              value={form.username}
-              onChange={onProfileChange}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-black"
-              autoComplete="username"
-            />
-          </div>
+    {/* Profile Card */}
+    <div className="bg-[var(--color-card)] dark:bg-[var(--color-card)] rounded-xl shadow-lg p-6 space-y-5">
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-[var(--color-text)]">Username</label>
+        <input
+          type="text"
+          name="username"
+          value={form.username}
+          onChange={onProfileChange}
+          className="w-full rounded-lg border border-[var(--color-border)] px-3 py-2 text-[var(--color-text)] bg-transparent"
+          autoComplete="username"
+        />
+      </div>
 
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700">Email</label>
-            <input
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={onProfileChange}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-black"
-              autoComplete="email"
-            />
-          </div>
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-[var(--color-text)]">Email</label>
+        <input
+          type="email"
+          name="email"
+          value={form.email}
+          onChange={onProfileChange}
+          className="w-full rounded-lg border border-[var(--color-border)] px-3 py-2 text-[var(--color-text)] bg-transparent"
+          autoComplete="email"
+        />
+      </div>
 
-          <div className="flex justify-end">
-            <button
-              onClick={onSaveProfile}
-              disabled={savingProfile}
-              className="px-4 py-2 rounded-xl font-semibold text-white bg-blue-600 hover:opacity-90 disabled:opacity-60"
-            >
-              {savingProfile ? 'Saving…' : 'Save Profile'}
-            </button>
-          </div>
-        </div>
-
-        {/* Change Password Card */}
-        <div className="bg-gray-100 rounded-xl shadow-lg p-6 space-y-5">
-          <h3 className="text-lg font-semibold text-black">Change Password</h3>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700">Current Password</label>
-            <input
-              type="password"
-              value={currentPassword}
-              onChange={e => setCurrentPassword(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-black"
-              autoComplete="current-password"
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700">New Password</label>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={e => setNewPassword(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-black"
-              autoComplete="new-password"
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700">Confirm New Password</label>
-            <input
-              type="password"
-              value={confirmNewPassword}
-              onChange={e => setConfirmNewPassword(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-black"
-              autoComplete="new-password"
-            />
-          </div>
-
-          <div className="flex justify-end">
-            <button
-              onClick={onSavePassword}
-              disabled={savingPassword}
-              className="px-4 py-2 rounded-xl font-semibold text-white bg-blue-600 hover:opacity-90 disabled:opacity-60"
-            >
-              {savingPassword ? 'Saving…' : 'Update Password'}
-            </button>
-          </div>
-        </div>
+      <div className="flex justify-end">
+        <button
+          onClick={onSaveProfile}
+          disabled={savingProfile}
+          className="px-4 py-2 rounded-xl font-semibold text-white bg-[var(--color-primary)] hover:opacity-90 disabled:opacity-60"
+        >
+          {savingProfile ? 'Saving…' : 'Save Profile'}
+        </button>
       </div>
     </div>
+
+    {/* Change Password Card */}
+    <div className="bg-[var(--color-card)] dark:bg-[var(--color-card)] rounded-xl shadow-lg p-6 space-y-5">
+      <h3 className="text-lg font-semibold text-[var(--color-text)]">Change Password</h3>
+
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-[var(--color-text)]">Current Password</label>
+        <input
+          type="password"
+          value={currentPassword}
+          onChange={e => setCurrentPassword(e.target.value)}
+          className="w-full rounded-lg border border-[var(--color-border)] px-3 py-2 text-[var(--color-text)] bg-transparent"
+          autoComplete="current-password"
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-[var(--color-text)]">New Password</label>
+        <input
+          type="password"
+          value={newPassword}
+          onChange={e => setNewPassword(e.target.value)}
+          className="w-full rounded-lg border border-[var(--color-border)] px-3 py-2 text-[var(--color-text)] bg-transparent"
+          autoComplete="new-password"
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-semibold text-[var(--color-text)]">Confirm New Password</label>
+        <input
+          type="password"
+          value={confirmNewPassword}
+          onChange={e => setConfirmNewPassword(e.target.value)}
+          className="w-full rounded-lg border border-[var(--color-border)] px-3 py-2 text-[var(--color-text)] bg-transparent"
+          autoComplete="new-password"
+        />
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          onClick={onSavePassword}
+          disabled={savingPassword}
+          className="px-4 py-2 rounded-xl font-semibold text-white bg-[var(--color-primary)] hover:opacity-90 disabled:opacity-60"
+        >
+          {savingPassword ? 'Saving…' : 'Update Password'}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
   );
 };
 

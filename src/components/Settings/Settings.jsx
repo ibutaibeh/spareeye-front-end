@@ -76,92 +76,93 @@ const Settings = () => {
   }
 
   return (
-    <div className="min-h-[84vh] w-full flex flex-col items-center justify-center px-6 bg-[var(--color-bg)]">
-      <div className="w-full max-w-lg space-y-4">
-        {/* Header */}
-        <h2 className="text-3xl font-bold text-white mb-6 text-center">Settings</h2>
+    <div className="min-h-[84vh] w-full flex flex-col items-center justify-center px-6 bg-[var(--color-bg)] dark:bg-[var(--color-bg)]">
+  <div className="w-full max-w-lg space-y-4">
+    {/* Header */}
+    <h2 className="text-3xl font-bold text-[var(--color-header)] dark:text-[var(--color-header)] mb-6 text-center">Settings</h2>
 
-        {/* Theme */}
-        <div className="flex items-center justify-between bg-gray-100 p-4 rounded-xl shadow-lg">
-          <span className="text-lg font-semibold text-black">Theme</span>
-          <div className="flex gap-6">
-            <label className="flex items-center gap-2 text-black">
-              <input
-                type="radio"
-                name="theme"
-                value="dark"
-                checked={settings.theme === 'dark'}
-                onChange={() => applyUpdate({ theme: 'dark' })}
-                className="w-5 h-5 accent-blue-500"
-              />
-              <span className="text-lg">Dark</span>
-            </label>
-            <label className="flex items-center gap-2 text-black">
-              <input
-                type="radio"
-                name="theme"
-                value="light"
-                checked={settings.theme === 'light'}
-                onChange={() => applyUpdate({ theme: 'light' })}
-                className="w-5 h-5 accent-blue-500"
-              />
-              <span className="text-lg">Light</span>
-            </label>
-          </div>
-        </div>
-
-        {/* AI Companion Voice */}
-        <div className="flex items-center justify-between bg-gray-100 p-4 rounded-xl shadow-lg">
-          <span className="text-lg font-semibold text-black">AI Companion Voice</span>
-          <div className="flex gap-6">
-            <label className="flex items-center gap-2 text-black">
-              <input
-                type="radio"
-                name="aiVoice"
-                value="male"
-                checked={settings.aiVoice === 'male'}
-                onChange={() => applyUpdate({ aiVoice: 'male' })}
-                className="w-5 h-5 accent-blue-500"
-              />
-              <span className="text-lg">Male</span>
-            </label>
-            <label className="flex items-center gap-2 text-black">
-              <input
-                type="radio"
-                name="aiVoice"
-                value="female"
-                checked={settings.aiVoice === 'female'}
-                onChange={() => applyUpdate({ aiVoice: 'female' })}
-                className="w-5 h-5 accent-blue-500"
-              />
-              <span className="text-lg">Female</span>
-            </label>
-          </div>
-        </div>
-
-        {/* Notifications */}
-        <div className="flex items-center justify-between bg-gray-100 p-4 rounded-xl shadow-lg">
-          <span className="text-lg font-semibold text-black">Notifications</span>
+    {/* Theme */}
+    <div className="flex items-center justify-between bg-[var(--color-card)] dark:bg-[var(--color-card)] p-4 rounded-xl shadow-lg">
+      <span className="text-lg font-semibold text-[var(--color-text)] dark:text-[var(--color-text)]">Theme</span>
+      <div className="flex gap-6">
+        <label className="flex items-center gap-2 text-[var(--color-text)] dark:text-[var(--color-text)]">
           <input
-            type="checkbox"
-            checked={settings.notifications}
-            onChange={e => applyUpdate({ notifications: e.target.checked })}
-            className="w-6 h-6 accent-blue-500"
+            type="radio"
+            name="theme"
+            value="dark"
+            checked={settings.theme === 'dark'}
+            onChange={() => applyUpdate({ theme: 'dark' })}
+            className="w-5 h-5 accent-[var(--color-primary)] dark:accent-[var(--color-primary)]"
           />
-        </div>
-
-        {/* Auto-Updates */}
-        <div className="flex items-center justify-between bg-gray-100 p-4 rounded-xl shadow-lg">
-          <span className="text-lg font-semibold text-black">Enable Auto-Updates</span>
+          <span className="text-lg">Dark</span>
+        </label>
+        <label className="flex items-center gap-2 text-[var(--color-text)] dark:text-[var(--color-text)]">
           <input
-            type="checkbox"
-            checked={settings.autoUpdates}
-            onChange={e => applyUpdate({ autoUpdates: e.target.checked })}
-            className="w-6 h-6 accent-blue-500"
+            type="radio"
+            name="theme"
+            value="light"
+            checked={settings.theme === 'light'}
+            onChange={() => applyUpdate({ theme: 'light' })}
+            className="w-5 h-5 accent-[var(--color-primary)] dark:accent-[var(--color-primary)]"
           />
-        </div>
+          <span className="text-lg">Light</span>
+        </label>
       </div>
     </div>
+
+    {/* AI Companion Voice */}
+    <div className="flex items-center justify-between bg-[var(--color-card)] dark:bg-[var(--color-card)] p-4 rounded-xl shadow-lg">
+      <span className="text-lg font-semibold text-[var(--color-text)] dark:text-[var(--color-text)]">AI Companion Voice</span>
+      <div className="flex gap-6">
+        <label className="flex items-center gap-2 text-[var(--color-text)] dark:text-[var(--color-text)]">
+          <input
+            type="radio"
+            name="aiVoice"
+            value="male"
+            checked={settings.aiVoice === 'male'}
+            onChange={() => applyUpdate({ aiVoice: 'male' })}
+            className="w-5 h-5 accent-[var(--color-primary)] dark:accent-[var(--color-primary)]"
+          />
+          <span className="text-lg">Male</span>
+        </label>
+        <label className="flex items-center gap-2 text-[var(--color-text)] dark:text-[var(--color-text)]">
+          <input
+            type="radio"
+            name="aiVoice"
+            value="female"
+            checked={settings.aiVoice === 'female'}
+            onChange={() => applyUpdate({ aiVoice: 'female' })}
+            className="w-5 h-5 accent-[var(--color-primary)] dark:accent-[var(--color-primary)]"
+          />
+          <span className="text-lg">Female</span>
+        </label>
+      </div>
+    </div>
+
+    {/* Notifications */}
+    <div className="flex items-center justify-between bg-[var(--color-card)] dark:bg-[var(--color-card)] p-4 rounded-xl shadow-lg">
+      <span className="text-lg font-semibold text-[var(--color-text)] dark:text-[var(--color-text)]">Notifications</span>
+      <input
+        type="checkbox"
+        checked={settings.notifications}
+        onChange={e => applyUpdate({ notifications: e.target.checked })}
+        className="w-6 h-6 accent-[var(--color-primary)] dark:accent-[var(--color-primary)]"
+      />
+    </div>
+
+    {/* Auto-Updates */}
+    <div className="flex items-center justify-between bg-[var(--color-card)] dark:bg-[var(--color-card)] p-4 rounded-xl shadow-lg">
+      <span className="text-lg font-semibold text-[var(--color-text)] dark:text-[var(--color-text)]">Enable Auto-Updates</span>
+      <input
+        type="checkbox"
+        checked={settings.autoUpdates}
+        onChange={e => applyUpdate({ autoUpdates: e.target.checked })}
+        className="w-6 h-6 accent-[var(--color-primary)] dark:accent-[var(--color-primary)]"
+      />
+    </div>
+  </div>
+</div>
+
   );
 };
 

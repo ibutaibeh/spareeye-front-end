@@ -5,28 +5,33 @@
 /* ------------------- Theme Variables ------------------- */
 @layer base {
   /* Light mode (default) */
-  :root {
-    --color-bg: #ffffff;
-    --color-text: #111827;
-    --color-primary: #aac2f6;
-    --color-secondary: #6b7280;
-    --color-border: #e5e7eb;
-  }
+:root {
+  --color-bg: #ffffff;
+   --color-text: #f9fafb;
+  --color-primary: #2563eb;
+  --color-secondary: #6b7280;
+  --color-border: #d1d5db; 
+  --color-card: #1f2937; 
+  --color-header:#1f2937;  
+         
+}
 
-  /* Dark mode */
-  .dark {
-    --color-bg: #111827;
-    --color-text: #f9fafb;
-    --color-primary: #053279;
-    --color-secondary: #9ca3af;
-    --color-border: #374151;
-  }
+.dark {
+  --color-bg: #111827;
+  --color-text: #111827;
+   --color-primary: #3b82f6;
+  --color-secondary: #9ca3af;
+  --color-border: #374151;
+  --color-card: #f3f4f6;
+  --color-header:#f3f4f6;
+}
 
   body {
     background-color: var(--color-bg);
     color: var(--color-text);
   }
 }
+
 
 
 @keyframes slideFadeIn {
