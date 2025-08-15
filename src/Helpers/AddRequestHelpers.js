@@ -1,3 +1,6 @@
+const API_BASE = import.meta.env.VITE_BACK_END_SERVER_URL;
+export const toAbs = (u) => (u && u.startsWith("/uploads/") ? `${API_BASE}${u}` : u);
+
 export const CAR_TYPES = ["Sedan", "SUV", "Hatchback", "Pickup", "Coupe", "Van"];
 
 export const MAKES_BY_TYPE = {

@@ -4,8 +4,16 @@ module.exports = {
     "./public/index.html", // optional if using CRA
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        bg: 'var(--color-bg)',
+        text: 'var(--color-text)',
+        primary: 'var(--color-primary)',
+        secondary: 'var(--color-secondary)',
+        border: 'var(--color-border)',
+      },
+    },
   },
-  darkMode: 'class', // optional for dark mode support
+  darkMode: 'class',
   plugins: [],
 }

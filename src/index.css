@@ -2,10 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
-
+/* ------------------- Theme Variables ------------------- */
 @layer base {
-  html, body {
-    background-color: #f5f4f4; 
-    color: #ffffff;
+  /* Light mode (default) */
+  :root {
+    --color-bg: #ffffff;
+    --color-text: #111827;
+    --color-primary: #aac2f6;
+    --color-secondary: #6b7280;
+    --color-border: #e5e7eb;
+  }
+
+  /* Dark mode */
+  .dark {
+    --color-bg: #111827;
+    --color-text: #f9fafb;
+    --color-primary: #053279;
+    --color-secondary: #9ca3af;
+    --color-border: #374151;
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
   }
 }
