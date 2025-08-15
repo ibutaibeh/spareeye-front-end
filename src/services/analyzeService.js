@@ -2,13 +2,11 @@
 const BASE_URL = import.meta.env.VITE_BACK_END_SERVER_URL;
 const API_PREFIX = "/requests";
 
-/** Read JWT (if any) and build auth header */
 function authHeader() {
   const token = localStorage.getItem("token");
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-/** Fetch with timeout and improved error surfaces */
 async function fetchWithTimeout(url, options = {}, timeoutMs = 60_000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
@@ -29,10 +27,6 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 60_000) {
   }
 }
 
-/**
- * Upload image Files to persistent storage.
- * Returns: { urls: string[] }
- */
 export async function uploadImages(files = []) {
   if (!files || files.length === 0) return { urls: [] };
 
@@ -54,17 +48,6 @@ export async function uploadImages(files = []) {
   );
 }
 
-/**
- * Analyze with optional images.
- * - If `files` provided, they’re uploaded first to get public URLs.
- * - Then calls /requests/analyze with JSON { userText, imageUrls }.
- *
- * @param {Object} params
- * @param {string} params.userText
- * @param {string[]} [params.imageUrls]
- * @param {File[]} [params.files]
- * @returns {Promise<{ result: any, imageUrls: string[] }>}
- */
 export async function analyzeRequest({ userText = "", imageUrls = [], files = [] } = {}) {
   let uploaded = [];
   if (files && files.length) {

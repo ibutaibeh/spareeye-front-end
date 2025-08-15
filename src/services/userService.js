@@ -4,7 +4,6 @@ const authHeader = () => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-/** GET /api/users/:userId  -> { user: {...} } */
 export async function getUser(userId) {
   const res = await fetch(`${API_BASE}/users/${userId}`, {
     method: 'GET',
