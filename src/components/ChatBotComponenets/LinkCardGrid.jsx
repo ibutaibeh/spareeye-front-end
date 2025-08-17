@@ -1,5 +1,3 @@
-import React from 'react'
-
 export const LinkCardGrid = ({ links }) => {
     if (!Array.isArray(links) || links.length === 0) return null;
 

@@ -1,9 +1,7 @@
-import React, { useEffect, useState, useContext } from 'react';
-import { UserContext } from '../../contexts/UserContext';
+import { useEffect, useState } from 'react';
 import { getUser, updateUser, changePassword } from '../../services/userService';
 
-const Profile = () => {
-  const { user } = useContext(UserContext); // expects { _id, ... }
+const Profile = ({ user, setUser }) => {
   const userId = user?._id;
 
   const [form, setForm] = useState({ username: '', email: '' });
@@ -26,7 +24,7 @@ const Profile = () => {
       setLoading(true);
       setError('');
       try {
-        const data = await getUser(userId); // { user: {...} }
+        const data = await getUser(userId);
         const me = data?.user || {};
         if (mounted) {
           const snapshot = {

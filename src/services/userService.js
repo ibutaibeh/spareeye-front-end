@@ -1,4 +1,5 @@
 const API_BASE = import.meta.env.VITE_BACK_END_SERVER_URL;
+
 const authHeader = () => {
   const token = localStorage.getItem('token');
   return token ? { Authorization: `Bearer ${token}` } : {};

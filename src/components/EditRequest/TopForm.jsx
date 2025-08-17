@@ -1,6 +1,6 @@
 import Thumbs from "../ChatBotComponenets/Thumbs";
 
-const TopForm = ({setReq, updateData, navigate, req, data, galleryUrls, setData, messages}) => {
+const TopForm = ({user, setReq, updateData, navigate, req, data, galleryUrls, setData, messages}) => {
     return (
         <div className="mx-auto w-full max-w-5xl px-4 pt-4">
             <form

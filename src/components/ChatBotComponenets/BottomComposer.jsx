@@ -32,7 +32,6 @@ const BottomComposer = ({onSend, onChooseFiles, input, step, setInput, files}) =
                 </button>
             </div>
 
-            {/* thumbnails preview for the current chosen files (before sending) */}
             {files.length > 0 && (
                 <div className="px-4 pb-3">
                     <p className="text-xs text-gray-600 mb-2">Selected images ({files.length})</p>

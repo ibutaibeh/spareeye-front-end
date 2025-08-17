@@ -1,17 +1,15 @@
-import { useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom'
 import * as requestService from '../../services/requestService';
-import { UserContext } from "../../contexts/UserContext"
 import { deleteRequest } from "../../services/requestService"
 
-const MyRequest = () => {
+const MyRequest = ({ user }) => {
   const [requests, setRequests] = useState([])
-  const { user } = useContext(UserContext)
   const userRequestList = requests.filter(request => request.owner._id === user._id)
   useEffect(() => {
     const fetchRequests = async () => {
       try {
-        const fetchedRequest = await requestService.loadReqeusts();
+        const fetchedRequest = await requestService.loadRequests();
         setRequests(fetchedRequest)
       } catch (err) {
         console.log(err)
@@ -54,6 +52,7 @@ const MyRequest = () => {
           key={index}
           className="bg-[var(--color-card)] dark:bg-[var(--color-card)] hover:bg-opacity-90 shadow-md rounded-lg p-4 flex flex-col justify-between transform transition duration-300 hover:scale-105 hover:shadow-lg"
         >
+          
           {/* Clickable Card Area */}
           <Link to={`/requests/${request._id}`} className="block flex-1">
             <h2 className="text-lg font-semibold text-[var(--color-text)] dark:text-[var(--color-text)]">

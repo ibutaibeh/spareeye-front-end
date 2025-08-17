@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef, useContext, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { analyzeRequest, uploadImages } from "../../services/analyzeService";
 import { createRequest, updateRequest } from "../../services/requestService";
-import { UserContext } from "../../contexts/UserContext";
 import {
   CAR_TYPES,
   MAKES_BY_TYPE,
@@ -14,8 +13,7 @@ import MessagesArea from "../ChatBotComponenets/MessagesArea";
 import BottomComposer from "../ChatBotComponenets/BottomComposer";
 
 /* --------------------------- Page Component --------------------------- */
-const AddNewRequest = () => {
-  const { user } = useContext(UserContext);
+const AddNewRequest = ({ user }) => {
   // steps: 1=carType, 2=carMade, 3=carModel, 4=carYear, 5=description, 6=image, 7=analyze
   const [step, setStep] = useState(1);
   const [data, setData] = useState({
@@ -30,7 +28,7 @@ const AddNewRequest = () => {
 
   // files for step 6
   const [files, setFiles] = useState([]);
-  const [allFiles, setAllFiles] = useState([]); // uploaded URLs used for analysis
+  const [allFiles, setAllFiles] = useState([]);
   const endRef = useRef(null);
 
   useEffect(() => {
@@ -129,7 +127,7 @@ const AddNewRequest = () => {
     setMessages(nextUserMessages);
     await updateData(dNext, nextUserMessages);
 
-    // 3) Move flow forward
+    // Move flow forward
     const next = step + 1;
     setStep(next);
 
@@ -216,7 +214,7 @@ const AddNewRequest = () => {
       });
     }
 
-    // Commit all assistant messages + persist
+    // Commit all assistant messages
     setMessages((prev) => {
       const safePrev = Array.isArray(prev) ? prev : [];
       const next = [...safePrev, ...pendingAssistant];

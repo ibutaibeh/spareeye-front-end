@@ -1,10 +1,11 @@
 const API_BASE = import.meta.env.VITE_BACK_END_SERVER_URL;
+
 const authHeader = () => {
   const token = localStorage.getItem('token');
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-// GET /api/settings/:userId
+// GET /settings/:userId
 export async function getSettings(userId) {
   const res = await fetch(`${API_BASE}/settings/${userId}`, {
     method: 'GET',
@@ -14,7 +15,7 @@ export async function getSettings(userId) {
   return res.json();
 }
 
-// PUT /api/settings/:userId
+// PUT /settings/:userId
 export async function updateSettings(userId, patch) {
   const res = await fetch(`${API_BASE}/settings/${userId}`, {
     method: 'PUT',

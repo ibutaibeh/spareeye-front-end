@@ -39,7 +39,6 @@ export const normalizeRecommended = (list) => {
     })
     .filter(Boolean);
 
-  // keep only deep links; if none, fall back to whatever we have
   const deep = items.filter((x) => isDeepProductUrl(x.url));
   const unique = (arr) => {
     const seen = new Set();
