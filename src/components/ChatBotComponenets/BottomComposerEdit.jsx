@@ -1,4 +1,3 @@
-import React from 'react'
 import Thumbs from "../ChatBotComponenets/Thumbs";
 
 const BottomComposerEdit = ({setInput, onKeyDown, onSend, files, onPickFiles, input, step}) => {
@@ -27,7 +26,7 @@ const BottomComposerEdit = ({setInput, onKeyDown, onSend, files, onPickFiles, in
                 </button>
             </div>
 
-            {/* Preview thumbnails for newly selected (not yet uploaded) files */}
+            {/* Preview thumbnails for newly selected files */}
             {files.length > 0 && (
                 <div className="mx-auto max-w-5xl px-4 pb-3">
                     <p className="text-xs text-gray-600 mb-2">Selected images ({files.length})</p>

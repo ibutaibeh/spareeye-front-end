@@ -1,7 +1,6 @@
 // src/pages/EditRequest.jsx
-import React, { useState, useEffect, useRef, useContext, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { UserContext } from "../../contexts/UserContext";
 import {
   getRequest,
   updateRequest,
@@ -17,17 +16,14 @@ import {
   makeLinkLabel,
   toAbs
 } from "../../Helpers/AddRequestHelpers";
-import MessagesArea from "../ChatBotComponenets/MessagesArea";
-import BottomComposer from "../ChatBotComponenets/BottomComposer";
 import TopForm from "./TopForm";
 import MessagesAreaEdit from "../ChatBotComponenets/MessagesAreaEdit";
 import BottomComposerEdit from "../ChatBotComponenets/BottomComposerEdit";
 
 /* ----------------------------- Component ----------------------------- */
-export default function EditRequest() {
+export default function EditRequest({user}) {
   const { reqId } = useParams();
   const navigate = useNavigate();
-  const { user } = useContext(UserContext);
 
   const [step, setStep] = useState(1);
   const [data, setData] = useState({
@@ -109,14 +105,12 @@ export default function EditRequest() {
           image: safeReq.image || "",
         });
 
-        // Collect any previously uploaded image URLs
         const priorUrls =
           safeReq.messages
             .filter((m) => Array.isArray(m.imageUrls) && m.imageUrls.length > 0)
             .flatMap((m) => m.imageUrls) || [];
         setAllFiles(priorUrls);
 
-        // Determine current step and show the next prompt
         const s = computeCurrentStep(safeReq.carDetails, safeReq.description, safeReq.messages);
         setStep(s);
         showPrompt(s, safeReq.carDetails);
@@ -215,7 +209,7 @@ export default function EditRequest() {
     setMessages(nextMsgs);
     await updateData(dNext, nextMsgs);
 
-    // 3) Move flow forward
+    // Move flow forward
     const nextStep = computeCurrentStep(dNext.carDetails, dNext.description, nextMsgs);
     setStep(nextStep);
 
@@ -389,7 +383,7 @@ export default function EditRequest() {
   return (
     <div className="min-h-screen w-full text-gray-900 bg-gray-50 flex flex-col">
       {/* ---------- TOP FORM ---------- */}
-      <TopForm setReq={setReq} messages={messages} setData={setData} updateData={updateData} navigate={navigate} data={data} req={req} galleryUrls={galleryUrls} />
+      <TopForm user={user} setReq={setReq} messages={messages} setData={setData} updateData={updateData} navigate={navigate} data={data} req={req} galleryUrls={galleryUrls} />
 
       {/* ---------- CHAT ---------- */}
       <MessagesAreaEdit messages={messages} onSendAnswer={onSendAnswer} endRef={endRef} />

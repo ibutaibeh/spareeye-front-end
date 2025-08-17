@@ -1,13 +1,9 @@
-import React, { useEffect } from 'react'
-import { UserContext } from '../../contexts/UserContext'
-import { useContext, useState } from 'react'
+import { useState } from 'react'
 import { signUp } from '../../services/authService'
 import { useNavigate } from 'react-router'
 
-const SignUpForm = () => {
-
+const SignUpForm = ({ user, setUser }) => {
   const navigate= useNavigate();
-  const {setUser}= useContext(UserContext)
   const [message,setMessage]=useState('') 
   const [formData,setFormData]=useState({
     username:'',
@@ -15,7 +11,8 @@ const SignUpForm = () => {
     password:'',
     passwordConf:'',
   })
-  const {username,email,password,passwordConf}=formData
+  
+  const {username, email, password, passwordConf} = formData
 
   const handleChange =(evt)=>{
         setMessage('');
@@ -24,7 +21,6 @@ const SignUpForm = () => {
 
     const handleSubmit = async (evt)=>{
       evt.preventDefault()
-      console.log(formData)
       const newUser = await signUp(formData)
       setUser(newUser)
       navigate('/')
@@ -33,6 +29,7 @@ const SignUpForm = () => {
     const isFormValid=()=>{
       return (username && password && email && password===passwordConf)
     }
+
   return (
     <>
   <div className="max-w-md mx-auto mt-16 p-6 bg-gray-800 rounded-2xl shadow-lg">

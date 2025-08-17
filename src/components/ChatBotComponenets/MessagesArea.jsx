@@ -6,8 +6,8 @@ const MessagesArea = ({messages, pickOption, endRef}) => {
     return (
         <div
             className="h-full mx-auto w-full max-w-5xl px-4 pt-4 overflow-y-auto"
-            style={{ paddingBottom: 140 }}
-        >
+            style={{ paddingBottom: 140 }}>
+                
             <ul className="space-y-4">
                 {(Array.isArray(messages) ? messages : []).map((m, i) => {
                     const isUser = m.role === "user";

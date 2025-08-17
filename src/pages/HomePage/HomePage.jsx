@@ -1,13 +1,11 @@
-import React, { useContext } from "react";
 import { Link, NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { UserContext } from "../../contexts/UserContext";
 import Breadcrumb from "../../components/Breadcrumb/Breadcrumb";
-import AddNewRequest from "../../components/AddNewRequest/AddNewRequest";
 import logo from '../../assets/SpareEye.jpg'
-const HomePage = () => {
-  const { user, setUser } = useContext(UserContext);
+
+const HomePage = ({user, setUser}) => {
   const navigate = useNavigate();
   const location = useLocation();
+
   const handleSignOut = () => {
     localStorage.removeItem("token");
     setUser(null);
@@ -15,9 +13,7 @@ const HomePage = () => {
   };
 
   return (
-    // Lock the page to viewport height and prevent document scrolling
     <div className="h-screen w-full overflow-hidden text-gray-100">
-      {/* Fixed, full-height sidebar */}
       <aside className="fixed inset-y-0 left-0 w-64 bg-gray-900 border-r border-gray-800 shadow-lg">
         <div className="h-full flex flex-col justify-between">
           <div className="p-6">
@@ -66,11 +62,8 @@ const HomePage = () => {
         </div>
       </aside>
 
-      {/* Main area — occupies the rest of the viewport, internal scroll only */}
       <main className="ml-64 h-screen">
-        {/* Single scroll container for the main area */}
         <div className="h-full overflow-y-auto">
-          {/* Fixed (sticky) header */}
           <div className="sticky top-0 z-10 bg-gray-900/95 border-b border-gray-800">
             <div className="p-4">
               <h1 className="text-2xl font-semibold text-white">SpareEye ⚙️</h1>
@@ -78,20 +71,17 @@ const HomePage = () => {
             </div>
           </div>
 
-          {/* Scrollable content (Outlet) */}
           <div className="p-6">
             {location.pathname === '/' && (
               <div className="min-h-[84vh] w-full flex flex-col items-center justify-center text-center px-6 bg-white dark:bg-gray-900">
-                {/* Logo */}
                 <div className="relative w-80 h-80 mb-8">
                   <img
-                    src={logo} // your imported logo
+                    src={logo}
                     alt="SpareEye Logo"
                     className="w-full h-full object-contain rounded-full shadow-2xl"
                   />
                 </div>
 
-                {/* Welcome Message */}
                 <h1 className="text-6xl font-extrabold  mb-4 animate-slide-fade text-red-700 dark:text-yellow-100">
                   Welcome to SpareEye
                 </h1>
@@ -99,7 +89,6 @@ const HomePage = () => {
                   Whenever your car breaks, snap a photo and get instant diagnostics, recommendations, and support—all in one app!
                 </p>
 
-                {/* Buttons */}
                 <div className="flex gap-6 flex-wrap justify-center">
                   {user ? (<div>
 
@@ -144,8 +133,6 @@ const HomePage = () => {
                 </div>
               </div>
             )}
-
-            
             <div>
 
               <Outlet />

@@ -1,78 +1,80 @@
 // src/services/requestService.js
 const BASE_URL = `${import.meta.env.VITE_BACK_END_SERVER_URL}/requests`;
 
-/* ----------------------- helpers ----------------------- */
-function authHeader() {
+/* ----------------------- auth header ----------------------- */
+const authHeader = () => {
   const token = localStorage.getItem("token") || "";
   return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-async function parseResponse(res) {
-  const text = await res.text(); // read once
-  if (!res.ok) {
-    let msg = `HTTP ${res.status} ${res.statusText}`;
-    try {
-      const j = text ? JSON.parse(text) : null;
-      msg = j?.error || j?.err || msg;
-    } catch {}
-    const err = new Error(msg);
-    err.status = res.status;
-    throw err;
-  }
-  if (!text) return {};
-  try {
-    return JSON.parse(text);
-  } catch {
-    return {};
-  }
-}
-
-async function http(url, { method = "GET", headers = {}, body } = {}) {
-  const isJson = body !== undefined && !(body instanceof FormData);
-  const payload = isJson && typeof body !== "string" ? JSON.stringify(body) : body;
-
-  const res = await fetch(url, {
-    method,
-    headers: {
-      Accept: "application/json",
-      ...(isJson ? { "Content-Type": "application/json" } : {}),
-      ...authHeader(),
-      ...headers,
-    },
-    body: payload,
-  });
-
-  return parseResponse(res);
-}
+};
 
 /* ----------------------- API calls ----------------------- */
-
 // GET ALL
-export const loadRequests = () => http(BASE_URL);
-
-// (Backward-compatible alias for original typo)
-export const loadReqeusts = loadRequests;
+export const loadRequests = async () => {
+  const res = await fetch(BASE_URL, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      ...authHeader(),
+    },
+  });
+  return res.json();
+}
 
 // GET ONE
-export const getRequest = (requestId) => http(`${BASE_URL}/${requestId}`);
+export async function getRequest(requestId) {
+  const res = await fetch(`${BASE_URL}/${requestId}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      ...authHeader(),
+    },
+  });
+  return res.json();
+}
 
 // CREATE
-export const createRequest = (requestFormData) =>
-  http(BASE_URL, { method: "POST", body: requestFormData });
+export async function createRequest(data) {
+  const isFormData = data instanceof FormData;
+  const res = await fetch(BASE_URL, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      ...(!isFormData ? { "Content-Type": "application/json" } : {}),
+      ...authHeader(),
+    },
+    body: isFormData ? data : JSON.stringify(data ?? {}),
+  });
+  return res.json();
+}
 
 // UPDATE
-export const updateRequest = (requestId, requestFormData) =>
-  http(`${BASE_URL}/${requestId}`, { method: "PUT", body: requestFormData });
+export async function updateRequest(requestId, data) {
+  const isFormData = data instanceof FormData;
+  const res = await fetch(`${BASE_URL}/${requestId}`, {
+    method: "PUT",
+    headers: {
+      Accept: "application/json",
+      ...(!isFormData ? { "Content-Type": "application/json" } : {}),
+      ...authHeader(),
+    },
+    body: isFormData ? data : JSON.stringify(data ?? {}),
+  });
+  return res.json();
+}
 
 // DELETE
-export const deleteRequest = (requestId) =>
-  http(`${BASE_URL}/${requestId}`, { method: "DELETE" });
+export async function deleteRequest(requestId) {
+  const res = await fetch(`${BASE_URL}/${requestId}`, {
+    method: "DELETE",
+    headers: {
+      Accept: "application/json",
+      ...authHeader(),
+    },
+  });
+  return res.json();
+}
 
-/**
- * Upload images to persistent storage.
- * Accepts either a FormData (with "images") OR an array of File objects.
- * Returns: { urls: string[] }
- */
+// Upload images
 export async function uploadImages(input) {
   let form;
   if (input instanceof FormData) {
@@ -81,17 +83,15 @@ export async function uploadImages(input) {
     form = new FormData();
     input.forEach((f) => form.append("images", f));
   } else {
-    throw new Error("uploadImages expects a FormData or an array of File objects.");
+    form = new FormData();
   }
 
   const res = await fetch(`${BASE_URL}/uploads/images`, {
     method: "POST",
     headers: {
-      // DO NOT set Content-Type for multipart; browser sets boundary.
       ...authHeader(),
     },
     body: form,
   });
-
-  return parseResponse(res); // -> { urls: [...] }
+  return res.json();
 }

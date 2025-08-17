@@ -1,13 +1,11 @@
-import React from 'react'
-import { useState, useContext } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import {signIn} from '../../services/authService'
-import {UserContext} from '../../contexts/UserContext'
 
-const SignInForm = () => {
+const SignInForm = ({ setUser }) => {
     const navigate = useNavigate()
-    const {setUser}= useContext(UserContext)
     const [message,setMessage]=useState('')
+
     const [formData,setFormData]=useState({
         username:'',
         password:'',
@@ -79,7 +77,6 @@ const SignInForm = () => {
   </div>
 </>
 
-    
   )
 }
 

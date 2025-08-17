@@ -1,9 +1,7 @@
-import React, { useEffect, useState, useContext, useCallback } from 'react';
-import { UserContext } from '../../contexts/UserContext';
+import { useEffect, useState, useCallback } from 'react';
 import { getSettings, updateSettings } from '../../services/settingsService';
 
-const Settings = () => {
-  const { user } = useContext(UserContext);
+const Settings = ({ user }) => {
   const userId = user?._id;
 
   const [settings, setSettings] = useState({
@@ -14,18 +12,15 @@ const Settings = () => {
   });
   const [loading, setLoading] = useState(true);
 
-  // Apply theme class to <html> whenever settings.theme changes
   useEffect(() => {
     if (!loading) {
       const root = document.documentElement;
       if (settings.theme === 'dark') root.classList.add('dark');
       else root.classList.remove('dark');
-      // Optional: persist user preference locally too
       localStorage.setItem('theme', settings.theme);
     }
   }, [settings.theme, loading]);
 
-  // Initial fetch (ensures a settings doc exists server-side)
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -47,15 +42,12 @@ const Settings = () => {
     return () => { mounted = false; };
   }, [userId]);
 
-  // Optimistic update helper: updates local state, then API
   const applyUpdate = useCallback(async (patch) => {
     if (!userId) return;
-    // optimistic UI
     setSettings(prev => ({ ...prev, ...patch }));
     try {
       await updateSettings(userId, patch);
     } catch (err) {
-      // revert on failure by refetching minimal truth
       const fresh = await getSettings(userId);
       setSettings({
         theme: fresh.theme ?? 'dark',

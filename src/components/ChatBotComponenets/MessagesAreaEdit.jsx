@@ -18,12 +18,12 @@ const MessagesAreaEdit = ({messages, onSendAnswer, endRef, toAbs}) => {
                             >
                                 <p className="whitespace-pre-wrap">{m.text}</p>
 
-                                {/* Persisted image thumbnails */}
+                                {/* image thumbnails */}
                                 {Array.isArray(m.imageUrls) && m.imageUrls.length > 0 && (
                                     <Thumbs urls={m.imageUrls} size={96} rounded={isUser ? "rounded-lg" : "rounded-lg"} />
                                 )}
 
-                                {/* Link cards (if previous analysis added them) */}
+                                {/* Link cards */}
                                 {!isUser && Array.isArray(m.links) && m.links.length > 0 && <LinkCardGrid links={m.links} />}
 
                                 {/* Quick option chips */}
